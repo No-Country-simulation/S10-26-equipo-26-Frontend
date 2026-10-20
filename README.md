@@ -17,6 +17,22 @@ El frontend proporciona una interfaz ejecutiva para explorar los datos procesado
 - Mostrar alertas de anomalías detectadas por el sistema.
 - Facilitar la interpretación de los resultados mediante gráficos y tablas.
 
+### Problemas clave del proyecto y responsabilidad de este repo
+
+El equipo enfrenta tres problemas técnicos centrales (detalle en `problematica.md` en la raíz del proyecto; plan de trabajo ágil en `PLAN-AGIL.md`). Este repo es la capa de visualización:
+
+| Problema | Responsabilidad del Frontend | Decisión clave |
+|---|---|---|
+| **1. Identidad de productos entre tiendas** | Tabla que muestra el producto canónico con sus variantes/precios por tienda y el spread entre competidores. | El mapeo producto↔tienda lo define el backend; el frontend solo lo consume. |
+| **2. Promociones, stock y reduflación** | Visualizar promo vs precio regular (series y badges) y la alerta de reduflación detectada por el sistema. | La lógica de exclusión de promos del índice de inflación vive en el backend; aquí solo se muestra. |
+| **3. Sincronización timestamp ↔ tipo de cambio** | Filtro de moneda de visualización (local / USD); el usuario ve el precio ya convertido. | **No convertir en el cliente.** Se consume el `price_usd` calculado por el backend con el FX del momento de la captura. |
+
+Flujo de datos y orden de dependencias:
+
+- El backend define la API y el esquema; este repo la consume.
+- Puede desarrollarse con datos mockeados mientras la API no esté lista.
+- Orden de implementación sugerido: Backend → Data (en paralelo) → Frontend.
+
 ## 2. Alcance del MVP
 
 La primera versión prioriza una experiencia funcional, clara y reproducible.
@@ -30,7 +46,9 @@ La primera versión prioriza una experiencia funcional, clara y reproducible.
 | Comparación multimoneda | Visualización de precios en moneda local y USD. | P0 |
 | Filtros globales | Período, tienda y categoría. | P0 |
 | Tabla de productos | Consulta de productos y precios observados. | P0 |
-| Alertas de anomalías | Listado de productos con variaciones atípicas. | P0 |
+| Comparación entre tiendas | Producto canónico vs precios por tienda y spread. | P0 |
+| Promo vs precio regular | Series y badges que distinguen descuento de baja real. | P0 |
+| Alertas de anomalías | Listado de productos con variaciones atípicas y reduflación. | P0 |
 | Estados de interfaz | Carga, ausencia de datos y errores. | P0 |
 
 ### Fuera del alcance inicial
@@ -184,4 +202,20 @@ Permite analizar la evolución del precio en moneda local y en USD.
 
 La conversión debe utilizar los valores calculados por el backend, incluyendo la metodología y el tipo de cotización definidos para el análisis.
 
-No se debe convertir
+**Regla (problema 3):** el frontend **no** convierte monedas por su cuenta. Consume el `price_usd` calculado por el backend (que usa la cotización vigente al timestamp de la observación) y solo aplica el **filtro de moneda de visualización** (local / USD).
+
+### 5.5 Comparación entre tiendas (problema 1)
+
+Tabla de producto canónico con su precio en cada tienda observada, para comparar competidores:
+
+- Columnas: producto canónico, precio por tienda, precio mínimo, precio máximo y spread (diferencia entre tiendas).
+- Filtro por categoría y tienda.
+- Cada fila enlaza a la publicación original en la tienda (`source_url`) cuando exista.
+- El mapeo producto↔tienda proviene del backend; el frontend no deduce equivalencias.
+
+### 5.6 Promociones y reduflación (problema 2)
+
+- **Badge de promoción** en tablas y tooltips cuando la observación tenga `is_promotion = true`.
+- **Serie de precio regular vs precio promocional** en el gráfico de evolución histórica.
+- **Badge de alerta de reduflación** en productos cuya presentación/gramaje haya cambiado (viene del backend como `anomaly_type = shrinkflation`).
+- El frontend muestra la señal; la lógica de detección y la exclusión de promos del índice de inflación viven en el backend.
