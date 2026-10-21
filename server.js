@@ -1,8 +1,8 @@
-const express = require('express');
-const path = require('path');
+import express from 'express';
+import path from 'path';
 
 const app = express();
-const distPath = path.resolve(__dirname, 'dist');
+const distPath = path.resolve('dist');
 const port = process.env.PORT || 3000;
 
 app.use(express.static(distPath, { index: false }));
