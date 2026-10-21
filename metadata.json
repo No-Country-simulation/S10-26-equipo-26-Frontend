@@ -1,0 +1,6 @@
+{
+  "name": "PriceScope - Monitor de Inflación y Precios B2B",
+  "description": "Monitor de inflación real multimoneda, catálogo de productos canónicos, comparador entre tiendas, historial de precios, promociones y detección de reduflación.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
