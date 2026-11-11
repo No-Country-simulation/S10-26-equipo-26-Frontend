@@ -1,5 +1,6 @@
 import React from 'react';
 import { CurrencySelector } from '../common/CurrencySelector';
+import { ApiStatus } from '../common/ApiStatus';
 import { Database } from 'lucide-react';
 
 export type ActiveTab = 'dashboard' | 'catalog' | 'pricing' | 'shrinkflation' | 'api-contracts';
@@ -94,6 +95,7 @@ export const TopNav: React.FC<TopNavProps> = ({
 
       {/* Zone 3: 1 primary action area */}
       <div className="flex items-center gap-3 shrink-0">
+        <ApiStatus />
         <CurrencySelector />
 
         {/* Mock/Live Backend Mode Badge & Toggle */}

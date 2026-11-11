@@ -1,18 +1,52 @@
 /**
  * PriceScope API Client
  * Centralized HTTP client communicating with FastAPI backend.
- * Provides typed requests, error handling, mock fallback detection,
- * and transparent offline resilience for development and evaluation.
+ *
+ * Contrato (SPEC-IMPLEMENTACION §2.3):
+ * - `VITE_API_BASE_URL`: prefijo base (default `/api/v1`).
+ * - `VITE_ENABLE_MOCK`: mock SOLO si es `true` (dev local sin backend).
+ *   Con mock desactivado los errores se propagan: nunca fallback silencioso.
  */
 
 import { ApiError } from '../types/api';
 
-const API_BASE_URL = (import.meta as any).env?.VITE_API_BASE_URL || '/api';
+const env = (
+  (import.meta as unknown as { env?: Record<string, string | undefined> }).env
+) ?? {};
 
-// Configurable state: whether we are using live FastAPI or mock fallback
+const DEFAULT_BASE_URL: string = env.VITE_API_BASE_URL || '/api/v1';
+const DEFAULT_MOCK =
+  String(env.VITE_ENABLE_MOCK ?? 'false').toLowerCase() === 'true';
+
+/** Base efectiva (se puede sobreescribir en tests con __setConfigForTests). */
+let baseUrl = DEFAULT_BASE_URL;
+/** Si el entorno permite mock (VITE_ENABLE_MOCK=true). */
+let mockEnabled = DEFAULT_MOCK;
+/** Toggle del usuario en la UI. */
+let forceMockMode = DEFAULT_MOCK;
 let isMockFallbackActive = false;
-let forceMockMode = true; // Default to true in standalone client preview if FastAPI is not yet running
 const listeners: ((active: boolean) => void)[] = [];
+
+/** Default documentado; la base efectiva se lee en cada request. */
+export const API_BASE_URL = DEFAULT_BASE_URL;
+
+/**
+ * Seam de testing: `import.meta.env` es snapshot en Vitest, así que la
+ * configuración se inyecta por código. Solo para tests.
+ */
+export function __setConfigForTests(config: {
+  baseUrl?: string;
+  mock?: boolean;
+}): void {
+  baseUrl = config.baseUrl ?? DEFAULT_BASE_URL;
+  mockEnabled = config.mock ?? DEFAULT_MOCK;
+  forceMockMode = mockEnabled;
+  isMockFallbackActive = false;
+}
+
+export function __resetConfigForTests(): void {
+  __setConfigForTests({});
+}
 
 export function getIsMockMode(): boolean {
   return forceMockMode || isMockFallbackActive;
@@ -34,6 +68,13 @@ export function subscribeMockMode(callback: (active: boolean) => void): () => vo
 function notifyListeners() {
   const current = getIsMockMode();
   listeners.forEach(fn => fn(current));
+}
+
+function activateFallback() {
+  if (!isMockFallbackActive) {
+    isMockFallbackActive = true;
+    notifyListeners();
+  }
 }
 
 export class PriceScopeApiException extends Error {
@@ -58,7 +99,7 @@ export async function request<T>(
     throw new Error('MOCK_FALLBACK_TRIGGERED');
   }
 
-  const url = `${API_BASE_URL}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
+  const url = `${baseUrl}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
   const headers = new Headers(options.headers || {});
   if (!headers.has('Content-Type') && options.body && typeof options.body === 'string') {
     headers.set('Content-Type', 'application/json');
@@ -106,11 +147,13 @@ export async function request<T>(
       throw err;
     }
 
-    // Network error, backend not running, or abort => trigger mock fallback
-    if (!isMockFallbackActive) {
-      isMockFallbackActive = true;
-      notifyListeners();
+    // Error de red / timeout / abort:
+    // - con VITE_ENABLE_MOCK=true (dev sin backend) => fallback a mock.
+    // - con mock deshabilitado => se propaga el error original (SPEC §2.3).
+    if (mockEnabled || getIsMockMode()) {
+      activateFallback();
+      throw new Error('MOCK_FALLBACK_TRIGGERED', { cause: err });
     }
-    throw new Error('MOCK_FALLBACK_TRIGGERED', { cause: err });
+    throw err;
   }
 }
