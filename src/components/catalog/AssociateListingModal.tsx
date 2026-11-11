@@ -27,25 +27,25 @@ export const AssociateListingModal: React.FC<AssociateListingModalProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [showConfirm, setShowConfirm] = useState(false);
 
-  useEffect(() => {
-    if (isOpen && product) {
-      loadUnmatched();
-      setSearch(product.brand);
-    }
-  }, [isOpen, product]);
-
   const loadUnmatched = async () => {
     setIsLoading(true);
     setError(null);
     try {
       const items = await getUnmatchedListings();
       setUnmatched(items);
-    } catch (err: any) {
+    } catch {
       setError('Error al cargar publicaciones pendientes.');
     } finally {
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (isOpen && product) {
+      loadUnmatched();
+      setSearch(product.brand);
+    }
+  }, [isOpen, product]);
 
   const handleSelectToAssociate = (listing: ProductListing) => {
     setSelectedListing(listing);

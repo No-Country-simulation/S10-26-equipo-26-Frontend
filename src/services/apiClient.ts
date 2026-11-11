@@ -111,6 +111,6 @@ export async function request<T>(
       isMockFallbackActive = true;
       notifyListeners();
     }
-    throw new Error('MOCK_FALLBACK_TRIGGERED');
+    throw new Error('MOCK_FALLBACK_TRIGGERED', { cause: err });
   }
 }

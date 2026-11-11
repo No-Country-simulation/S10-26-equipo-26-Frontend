@@ -6,7 +6,7 @@ import { getProductPriceHistory } from '../../services/pricingService';
 import { PriceHistoryChart } from './PriceHistoryChart';
 import { PromotionsTable } from './PromotionsTable';
 import { TableSkeleton } from '../common/LoadingSkeleton';
-import { Layers, ChevronDown } from 'lucide-react';
+import { Layers } from 'lucide-react';
 
 interface PricingOverviewProps {
   initialProductId?: string;

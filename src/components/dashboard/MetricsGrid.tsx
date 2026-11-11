@@ -1,15 +1,10 @@
 import React from 'react';
 import { DashboardSummary } from '../../types/analytics';
-import { useCurrency } from '../../context/CurrencyContext';
 import {
   Package,
-  Store,
   Tag,
   TrendingUp,
   ShieldAlert,
-  Percent,
-  CheckCircle2,
-  Calendar,
 } from 'lucide-react';
 
 interface MetricsGridProps {

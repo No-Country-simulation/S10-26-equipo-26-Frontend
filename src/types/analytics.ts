@@ -2,7 +2,6 @@
  * Types for PriceScope - Métricas de Analítica B2B y Dashboard
  */
 
-import { CurrencyCode } from './currency';
 
 export interface InflationMetricPoint {
   date: string;

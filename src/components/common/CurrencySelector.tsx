@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useCurrency } from '../../context/CurrencyContext';
-import { DollarSign, RefreshCw, AlertTriangle, Info, Check } from 'lucide-react';
+import { DollarSign, RefreshCw, AlertTriangle, Info } from 'lucide-react';
 
 export const CurrencySelector: React.FC = () => {
   const {

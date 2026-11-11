@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Database, Code, CheckCircle2, AlertCircle, Clock, Server, ArrowRight } from 'lucide-react';
+import { CheckCircle2, Server } from 'lucide-react';
 import { getIsMockMode, setForceMockMode } from '../../services/apiClient';
 
 interface ContractEndpoint {

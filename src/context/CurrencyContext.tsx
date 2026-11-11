@@ -34,7 +34,7 @@ export const CurrencyProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     try {
       const rate = await getActiveExchangeRate();
       setExchangeRate(rate);
-    } catch (err: any) {
+    } catch {
       setRateError('No se pudo obtener la cotización oficial del Backend.');
     } finally {
       setIsLoadingRate(false);

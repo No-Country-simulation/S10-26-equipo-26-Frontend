@@ -4,7 +4,7 @@ import { getActivePromotions } from '../../services/pricingService';
 import { useCurrency } from '../../context/CurrencyContext';
 import { TableSkeleton } from '../common/LoadingSkeleton';
 import { EmptyState } from '../common/EmptyState';
-import { Tag, ExternalLink, Filter, Building2, Calendar } from 'lucide-react';
+import { Tag, ExternalLink, Building2 } from 'lucide-react';
 
 interface PromotionsTableProps {
   onSelectProduct?: (productId: string) => void;
@@ -24,7 +24,7 @@ export const PromotionsTable: React.FC<PromotionsTableProps> = ({ onSelectProduc
     try {
       const data = await getActivePromotions(selectedStore, minDiscount);
       setPromos(data);
-    } catch (err: any) {
+    } catch {
       setError('Error al consultar promociones vigentes.');
     } finally {
       setIsLoading(false);

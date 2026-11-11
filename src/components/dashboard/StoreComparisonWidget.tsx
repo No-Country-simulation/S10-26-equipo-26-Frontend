@@ -1,6 +1,6 @@
 import React from 'react';
 import { StoreDispersionItem } from '../../types/analytics';
-import { Building2, Percent, CheckCircle, TrendingDown } from 'lucide-react';
+import { Building2 } from 'lucide-react';
 
 interface StoreComparisonWidgetProps {
   stores: StoreDispersionItem[];

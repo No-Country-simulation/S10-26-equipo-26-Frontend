@@ -19,11 +19,7 @@ import {
   AlertCircle,
   Sparkles,
   CheckCircle,
-  Tag,
   Building2,
-  Calendar,
-  Layers,
-  FileText,
 } from 'lucide-react';
 
 interface ProductDetailModalProps {
@@ -53,12 +49,6 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   const [suggestionToConfirm, setSuggestionToConfirm] = useState<MatchSuggestion | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
 
-  useEffect(() => {
-    if (isOpen && product) {
-      loadDetails();
-    }
-  }, [isOpen, product]);
-
   const loadDetails = async () => {
     if (!product) return;
     setIsLoading(true);
@@ -70,12 +60,18 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
       ]);
       setListings(listingsData);
       setSuggestions(allSuggestions.filter(s => s.canonicalProductId === product.id));
-    } catch (err: any) {
+    } catch {
       setError('Error al cargar publicaciones asociadas.');
     } finally {
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (isOpen && product) {
+      loadDetails();
+    }
+  }, [isOpen, product]);
 
   const handleConfirmDisassociate = async () => {
     if (!product || !listingToDisassociate) return;
@@ -100,7 +96,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
       setSuggestionToConfirm(null);
       await loadDetails();
       onUpdate();
-    } catch (err: any) {
+    } catch {
       setError('Error al confirmar sugerencia.');
     } finally {
       setIsProcessing(false);
@@ -113,7 +109,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
       await rejectMatchSuggestion(suggestionId, 'Rechazado manualmente por el usuario');
       await loadDetails();
       onUpdate();
-    } catch (err: any) {
+    } catch {
       setError('Error al rechazar sugerencia.');
     } finally {
       setIsProcessing(false);

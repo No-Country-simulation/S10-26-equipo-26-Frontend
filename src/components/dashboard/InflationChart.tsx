@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { InflationMetricPoint } from '../../types/analytics';
 import { useCurrency } from '../../context/CurrencyContext';
-import { TrendingUp, BarChart2, Layers } from 'lucide-react';
+import { TrendingUp } from 'lucide-react';
 
 interface InflationChartProps {
   series: InflationMetricPoint[];

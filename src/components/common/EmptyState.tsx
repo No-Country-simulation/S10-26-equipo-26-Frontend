@@ -1,5 +1,5 @@
 import React from 'react';
-import { LucideIcon, Search, AlertCircle, RefreshCw } from 'lucide-react';
+import { LucideIcon, Search, RefreshCw } from 'lucide-react';
 
 interface EmptyStateProps {
   icon?: LucideIcon;

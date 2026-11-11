@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { ProductPriceHistory, StorePricePoint } from '../../types/pricing';
 import { useCurrency } from '../../context/CurrencyContext';
-import { Tag, TrendingUp, Calendar, Info, Layers } from 'lucide-react';
+import { Tag, TrendingUp } from 'lucide-react';
 
 interface PriceHistoryChartProps {
   history: ProductPriceHistory;

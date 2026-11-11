@@ -6,7 +6,7 @@
  */
 
 import { CanonicalProduct, ProductListing, MatchSuggestion, Store } from '../types/catalog';
-import { ProductPriceHistory, PromotionSummaryItem, PriceObservation } from '../types/pricing';
+import { ProductPriceHistory, PromotionSummaryItem } from '../types/pricing';
 import { ShrinkflationAlert } from '../types/shrinkflation';
 import { ExchangeRate } from '../types/currency';
 import { DashboardSummary, InflationMetricPoint, StoreDispersionItem } from '../types/analytics';

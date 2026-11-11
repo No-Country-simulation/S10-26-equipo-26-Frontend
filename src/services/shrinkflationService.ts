@@ -12,7 +12,7 @@ import {
 } from '../types/shrinkflation';
 import { MOCK_SHRINKFLATION_ALERTS } from './mockData';
 
-let localAlerts = [...MOCK_SHRINKFLATION_ALERTS];
+const localAlerts = [...MOCK_SHRINKFLATION_ALERTS];
 
 export async function getShrinkflationAlerts(
   params: ShrinkflationFilterParams = {}

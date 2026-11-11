@@ -22,10 +22,10 @@ import {
 } from './mockData';
 
 // Mutable in-memory mock state so manual association/disassociation works dynamically
-let localProducts = [...MOCK_PRODUCTS];
-let localListings = { ...MOCK_LISTINGS };
-let localUnmatchedListings = [...MOCK_UNMATCHED_LISTINGS];
-let localSuggestions = [...MOCK_MATCH_SUGGESTIONS];
+const localProducts = [...MOCK_PRODUCTS];
+const localListings = { ...MOCK_LISTINGS };
+const localUnmatchedListings = [...MOCK_UNMATCHED_LISTINGS];
+const localSuggestions = [...MOCK_MATCH_SUGGESTIONS];
 
 export async function getStores(): Promise<Store[]> {
   try {

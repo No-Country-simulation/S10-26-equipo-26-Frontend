@@ -12,8 +12,6 @@
 import {
   getProducts,
   getProductListings,
-  associateListing,
-  disassociateListing,
   getMatchSuggestions,
   confirmMatchSuggestion,
 } from '../src/services/catalogService';

@@ -19,11 +19,6 @@ import {
 } from './services/apiClient';
 import {
   ChevronRight,
-  Database,
-  Layers,
-  TrendingUp,
-  ShieldAlert,
-  Server,
   Info,
 } from 'lucide-react';
 

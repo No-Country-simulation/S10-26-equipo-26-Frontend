@@ -8,14 +8,11 @@ import { Pagination } from '../common/Pagination';
 import { ProductDetailModal } from './ProductDetailModal';
 import {
   Search,
-  Filter,
   Eye,
   AlertTriangle,
   Sparkles,
   ArrowUpDown,
-  ShoppingBag,
   Store,
-  Layers,
 } from 'lucide-react';
 
 interface ProductCatalogProps {

@@ -1,6 +1,6 @@
 import React from 'react';
 import { CurrencySelector } from '../common/CurrencySelector';
-import { Database, ShieldCheck, ExternalLink } from 'lucide-react';
+import { Database } from 'lucide-react';
 
 export type ActiveTab = 'dashboard' | 'catalog' | 'pricing' | 'shrinkflation' | 'api-contracts';
 

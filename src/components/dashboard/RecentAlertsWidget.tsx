@@ -1,7 +1,7 @@
 import React from 'react';
 import { DashboardSummary } from '../../types/analytics';
 import { useCurrency } from '../../context/CurrencyContext';
-import { TrendingUp, TrendingDown, ArrowRight, ShieldAlert } from 'lucide-react';
+import { TrendingUp, TrendingDown, ArrowRight } from 'lucide-react';
 
 interface RecentAlertsWidgetProps {
   summary: DashboardSummary;

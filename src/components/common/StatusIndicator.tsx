@@ -1,5 +1,5 @@
 import React from 'react';
-import { CheckCircle2, AlertTriangle, HelpCircle, Tag, TrendingUp } from 'lucide-react';
+import { AlertTriangle, HelpCircle, Tag } from 'lucide-react';
 import { ShrinkflationStatus } from '../../types/shrinkflation';
 import { PriceType } from '../../types/pricing';
 

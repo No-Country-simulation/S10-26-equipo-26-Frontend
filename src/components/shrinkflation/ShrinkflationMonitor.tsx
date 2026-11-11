@@ -11,11 +11,9 @@ import {
   Filter,
   ArrowRight,
   TrendingUp,
-  Scale,
   Eye,
   CheckCircle2,
   AlertTriangle,
-  HelpCircle,
 } from 'lucide-react';
 
 export const ShrinkflationMonitor: React.FC = () => {
@@ -42,7 +40,7 @@ export const ShrinkflationMonitor: React.FC = () => {
         minHiddenInflation: minInflation || undefined,
       });
       setAlerts(data);
-    } catch (err: any) {
+    } catch {
       setError('Error al cargar alertas de reduflación.');
     } finally {
       setIsLoading(false);
