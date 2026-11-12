@@ -14,10 +14,10 @@ interface MetricsGridProps {
 export const MetricsGrid: React.FC<MetricsGridProps> = ({ summary }) => {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-      {/* Metric 1: Inflation MoM (Backend Calculated) */}
+      {/* Metric 1: variación índice inflación (90d) + variación precios (30d) */}
       <div className="p-4 bg-slate-900 border border-slate-800 rounded-lg">
         <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
-          <span>Inflación Mensual (MoM)</span>
+          <span>Inflación 90 Días</span>
           <TrendingUp className="w-4 h-4 text-red-400" />
         </div>
         <div className="flex items-baseline gap-2">
@@ -25,7 +25,7 @@ export const MetricsGrid: React.FC<MetricsGridProps> = ({ summary }) => {
             +{summary.periodInflationMoM.toFixed(2)}%
           </span>
           <span className="text-xs text-slate-400 font-mono">
-            YoY: +{summary.periodInflationYoY.toFixed(1)}%
+            30 días: +{summary.periodInflationYoY.toFixed(1)}%
           </span>
         </div>
         <div className="text-[11px] text-slate-500 mt-1 truncate" title={summary.calculationMethod}>

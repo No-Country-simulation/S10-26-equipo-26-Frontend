@@ -69,7 +69,7 @@ export const InflationChart: React.FC<InflationChartProps> = ({ series }) => {
             Evolución de la Inflación Real Mensual (MoM)
           </h3>
           <p className="text-xs text-slate-400 mt-0.5">
-            Cálculo oficial provisto por TimescaleDB según canasta fija ponderada
+            Índice experimental (base 100, mediana móvil 7 días, sin promociones)
           </p>
         </div>
 
