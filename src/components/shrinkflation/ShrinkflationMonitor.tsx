@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { ShrinkflationAlert, ShrinkflationStatus } from '../../types/shrinkflation';
 import { getShrinkflationAlerts } from '../../services/shrinkflationService';
 import { useCurrency } from '../../context/CurrencyContext';
@@ -30,26 +30,28 @@ export const ShrinkflationMonitor: React.FC = () => {
   // Selected alert for evidence modal
   const [selectedAlert, setSelectedAlert] = useState<ShrinkflationAlert | null>(null);
 
-  const loadAlerts = async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const data = await getShrinkflationAlerts({
-        status: statusFilter,
-        category: categoryFilter,
-        minHiddenInflation: minInflation || undefined,
-      });
-      setAlerts(data);
-    } catch {
-      setError('Error al cargar alertas de reduflación.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const loadAlerts = useCallback(() => {
+    return (async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const data = await getShrinkflationAlerts({
+          status: statusFilter,
+          category: categoryFilter,
+          minHiddenInflation: minInflation || undefined,
+        });
+        setAlerts(data);
+      } catch {
+        setError('Error al cargar alertas de reduflación.');
+      } finally {
+        setIsLoading(false);
+      }
+    })();
+  }, [statusFilter, categoryFilter, minInflation]);
 
   useEffect(() => {
-    loadAlerts();
-  }, [statusFilter, categoryFilter, minInflation]);
+    void loadAlerts();
+  }, [loadAlerts]);
 
   const confirmedCount = alerts.filter(a => a.status === 'confirmed').length;
   const suspectedCount = alerts.filter(a => a.status === 'suspected').length;
@@ -116,7 +118,7 @@ export const ShrinkflationMonitor: React.FC = () => {
 
           <select
             value={statusFilter}
-            onChange={e => setStatusFilter(e.target.value as any)}
+            onChange={e => setStatusFilter(e.target.value as ShrinkflationStatus | 'all')}
             className="text-xs bg-slate-950 border border-slate-700 text-slate-300 rounded px-2.5 py-1.5 focus:outline-none focus:border-blue-500"
           >
             <option value="all">Todos los estados</option>

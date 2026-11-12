@@ -120,17 +120,29 @@ export async function request<T>(
     clearTimeout(timeoutId);
 
     if (!response.ok) {
-      let errorBody: any = null;
+      let errorBody: { code?: string; message?: string; detail?: unknown } | null = null;
       try {
-        errorBody = await response.json();
+        errorBody = (await response.json()) as {
+          code?: string;
+          message?: string;
+          detail?: unknown;
+        };
       } catch {
         errorBody = { message: response.statusText };
       }
 
+      const rawDetail = errorBody?.detail;
+      const detail =
+        typeof rawDetail === 'string' || (rawDetail !== null && typeof rawDetail === 'object')
+          ? (rawDetail as ApiError['detail'])
+          : undefined;
       const apiError: ApiError = {
         code: errorBody?.code || `HTTP_${response.status}`,
-        message: errorBody?.message || errorBody?.detail || `Error en la petición: ${response.status}`,
-        detail: errorBody?.detail,
+        message:
+          errorBody?.message ||
+          (typeof rawDetail === 'string' ? rawDetail : '') ||
+          `Error en la petición: ${response.status}`,
+        detail,
         statusCode: response.status,
       };
       throw new PriceScopeApiException(apiError);
@@ -142,7 +154,7 @@ export async function request<T>(
       notifyListeners();
     }
     return data;
-  } catch (err: any) {
+  } catch (err: unknown) {
     if (err instanceof PriceScopeApiException) {
       throw err;
     }

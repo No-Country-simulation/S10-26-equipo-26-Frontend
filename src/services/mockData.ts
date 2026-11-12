@@ -6,7 +6,7 @@
  */
 
 import { CanonicalProduct, ProductListing, MatchSuggestion, Store } from '../types/catalog';
-import { ProductPriceHistory, PromotionSummaryItem } from '../types/pricing';
+import { ProductPriceHistory, PromotionSummaryItem, PriceType } from '../types/pricing';
 import { ShrinkflationAlert } from '../types/shrinkflation';
 import { ExchangeRate } from '../types/currency';
 import { DashboardSummary, InflationMetricPoint, StoreDispersionItem } from '../types/analytics';
@@ -1009,7 +1009,7 @@ export function generateMockPriceHistory(productId: string): ProductPriceHistory
           date,
           priceArs: price,
           priceUsd: +(price / 1180.50).toFixed(2),
-          priceType: (isPromo ? 'promotional' : (idx % 4 === 0 ? 'regular_estimated' : 'regular_observed')) as any,
+          priceType: (isPromo ? 'promotional' : (idx % 4 === 0 ? 'regular_estimated' : 'regular_observed')) as PriceType,
           isPromotional: isPromo,
           promotionMechanic: isPromo ? 'Carrefour Mi Club 12%' : undefined,
           discountPercentage: isPromo ? 12 : undefined,
@@ -1028,7 +1028,7 @@ export function generateMockPriceHistory(productId: string): ProductPriceHistory
           date,
           priceArs: price,
           priceUsd: +(price / 1180.50).toFixed(2),
-          priceType: (isPromo ? 'promotional' : 'regular_observed') as any,
+          priceType: (isPromo ? 'promotional' : 'regular_observed') as PriceType,
           isPromotional: isPromo,
           promotionMechanic: isPromo ? '2da al 70%' : undefined,
           discountPercentage: isPromo ? 18 : undefined,
@@ -1047,7 +1047,7 @@ export function generateMockPriceHistory(productId: string): ProductPriceHistory
           date,
           priceArs: price,
           priceUsd: +(price / 1180.50).toFixed(2),
-          priceType: (isPromo ? 'promotional' : 'regular_observed') as any,
+          priceType: (isPromo ? 'promotional' : 'regular_observed') as PriceType,
           isPromotional: isPromo,
           promotionMechanic: isPromo ? 'Descuento Cencosud 10%' : undefined,
           discountPercentage: isPromo ? 10 : undefined,

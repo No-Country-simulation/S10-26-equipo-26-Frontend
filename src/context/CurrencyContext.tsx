@@ -4,7 +4,14 @@
  * staleness alerts, and strict no-hallucination currency formatting.
  */
 
-import React, { createContext, useContext, useEffect, useState, useMemo } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useMemo,
+  useCallback,
+} from 'react';
 import { CurrencyCode, ExchangeRate } from '../types/currency';
 import { getActiveExchangeRate } from '../services/currencyService';
 
@@ -28,82 +35,87 @@ export const CurrencyProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [isLoadingRate, setIsLoadingRate] = useState<boolean>(true);
   const [rateError, setRateError] = useState<string | null>(null);
 
-  const fetchRate = async () => {
-    setIsLoadingRate(true);
-    setRateError(null);
-    try {
-      const rate = await getActiveExchangeRate();
-      setExchangeRate(rate);
-    } catch {
-      setRateError('No se pudo obtener la cotización oficial del Backend.');
-    } finally {
-      setIsLoadingRate(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchRate();
+  const fetchRate = useCallback(() => {
+    return (async () => {
+      setIsLoadingRate(true);
+      setRateError(null);
+      try {
+        const rate = await getActiveExchangeRate();
+        setExchangeRate(rate);
+      } catch {
+        setRateError('No se pudo obtener la cotización oficial del Backend.');
+      } finally {
+        setIsLoadingRate(false);
+      }
+    })();
   }, []);
 
-  const convertArsToCurrent = (amountArs?: number | null, explicitUsd?: number | null): number | null => {
-    if (amountArs === undefined || amountArs === null || isNaN(amountArs)) {
-      return null;
-    }
-    if (currency === 'ARS') {
-      return amountArs;
-    }
-    // Currency is USD
-    if (explicitUsd !== undefined && explicitUsd !== null && !isNaN(explicitUsd)) {
-      return explicitUsd;
-    }
-    if (exchangeRate && exchangeRate.rate > 0) {
-      return Number((amountArs / exchangeRate.rate).toFixed(2));
-    }
-    return null;
-  };
+  useEffect(() => {
+    void fetchRate();
+  }, [fetchRate]);
 
-  const formatMoney = (amountArs?: number | null, amountUsd?: number | null): string => {
-    if (amountArs === undefined || amountArs === null || isNaN(amountArs)) {
-      return 'N/D';
-    }
-
-    if (currency === 'ARS') {
-      // Spanish Argentina format: $ 1.450,00
-      return new Intl.NumberFormat('es-AR', {
-        style: 'currency',
-        currency: 'ARS',
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 2,
-      }).format(amountArs);
-    } else {
-      // Currency is USD
-      const valUsd = convertArsToCurrent(amountArs, amountUsd);
-      if (valUsd === null) {
-        return 'Cotización N/D';
+  const value = useMemo(() => {
+    const convertArsToCurrent = (
+      amountArs?: number | null,
+      explicitUsd?: number | null
+    ): number | null => {
+      if (amountArs === undefined || amountArs === null || isNaN(amountArs)) {
+        return null;
       }
-      return new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: 'USD',
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      }).format(valUsd);
-    }
-  };
+      if (currency === 'ARS') {
+        return amountArs;
+      }
+      // Currency is USD
+      if (explicitUsd !== undefined && explicitUsd !== null && !isNaN(explicitUsd)) {
+        return explicitUsd;
+      }
+      if (exchangeRate && exchangeRate.rate > 0) {
+        return Number((amountArs / exchangeRate.rate).toFixed(2));
+      }
+      return null;
+    };
 
-  const formatUnitRate = (
-    amountArs?: number | null,
-    amountUsd?: number | null,
-    unit: string = 'kg'
-  ): string => {
-    const moneyStr = formatMoney(amountArs, amountUsd);
-    if (moneyStr === 'N/D' || moneyStr === 'Cotización N/D') {
-      return moneyStr;
-    }
-    return `${moneyStr} / ${unit}`;
-  };
+    const formatMoney = (amountArs?: number | null, amountUsd?: number | null): string => {
+      if (amountArs === undefined || amountArs === null || isNaN(amountArs)) {
+        return 'N/D';
+      }
 
-  const value = useMemo(
-    () => ({
+      if (currency === 'ARS') {
+        // Spanish Argentina format: $ 1.450,00
+        return new Intl.NumberFormat('es-AR', {
+          style: 'currency',
+          currency: 'ARS',
+          minimumFractionDigits: 0,
+          maximumFractionDigits: 2,
+        }).format(amountArs);
+      } else {
+        // Currency is USD
+        const valUsd = convertArsToCurrent(amountArs, amountUsd);
+        if (valUsd === null) {
+          return 'Cotización N/D';
+        }
+        return new Intl.NumberFormat('en-US', {
+          style: 'currency',
+          currency: 'USD',
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        }).format(valUsd);
+      }
+    };
+
+    const formatUnitRate = (
+      amountArs?: number | null,
+      amountUsd?: number | null,
+      unit: string = 'kg'
+    ): string => {
+      const moneyStr = formatMoney(amountArs, amountUsd);
+      if (moneyStr === 'N/D' || moneyStr === 'Cotización N/D') {
+        return moneyStr;
+      }
+      return `${moneyStr} / ${unit}`;
+    };
+
+    return {
       currency,
       setCurrency,
       exchangeRate,
@@ -113,9 +125,8 @@ export const CurrencyProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       formatMoney,
       formatUnitRate,
       convertArsToCurrent,
-    }),
-    [currency, exchangeRate, isLoadingRate, rateError]
-  );
+    };
+  }, [currency, exchangeRate, isLoadingRate, rateError, fetchRate]);
 
   return <CurrencyContext.Provider value={value}>{children}</CurrencyContext.Provider>;
 };

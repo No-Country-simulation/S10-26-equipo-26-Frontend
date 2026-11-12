@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { CanonicalProduct, ProductListing } from '../../types/catalog';
 import { getUnmatchedListings, associateListing } from '../../services/catalogService';
 import { useCurrency } from '../../context/CurrencyContext';
@@ -27,25 +27,29 @@ export const AssociateListingModal: React.FC<AssociateListingModalProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [showConfirm, setShowConfirm] = useState(false);
 
-  const loadUnmatched = async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const items = await getUnmatchedListings();
-      setUnmatched(items);
-    } catch {
-      setError('Error al cargar publicaciones pendientes.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const loadUnmatched = useCallback((initialBrand?: string) => {
+    return (async () => {
+      if (initialBrand !== undefined) {
+        setSearch(initialBrand);
+      }
+      setIsLoading(true);
+      setError(null);
+      try {
+        const items = await getUnmatchedListings();
+        setUnmatched(items);
+      } catch {
+        setError('Error al cargar publicaciones pendientes.');
+      } finally {
+        setIsLoading(false);
+      }
+    })();
+  }, []);
 
   useEffect(() => {
     if (isOpen && product) {
-      loadUnmatched();
-      setSearch(product.brand);
+      void loadUnmatched(product.brand);
     }
-  }, [isOpen, product]);
+  }, [isOpen, product, loadUnmatched]);
 
   const handleSelectToAssociate = (listing: ProductListing) => {
     setSelectedListing(listing);
@@ -61,8 +65,10 @@ export const AssociateListingModal: React.FC<AssociateListingModalProps> = ({
       setSelectedListing(null);
       onSuccess();
       onClose();
-    } catch (err: any) {
-      setError(err.message || 'Error al asociar la publicación.');
+    } catch (err: unknown) {
+      setError(
+        err instanceof Error && err.message ? err.message : 'Error al asociar la publicación.'
+      );
     } finally {
       setIsSubmitting(false);
     }

@@ -86,7 +86,9 @@ describe('healthService — GET /api/v1/health (HU 0.4)', () => {
       jsonResponse({ detail: 'Not Found' }, 404)
     );
 
-    const error: any = await health.getHealth().catch((e: any) => e);
+    const error = (await health
+      .getHealth()
+      .catch((e: unknown) => e)) as import('./apiClient').PriceScopeApiException;
     expect(error).toBeInstanceOf(client.PriceScopeApiException);
     expect(error.statusCode).toBe(404);
   });

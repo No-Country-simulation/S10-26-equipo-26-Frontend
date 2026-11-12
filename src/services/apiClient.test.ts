@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { PriceScopeApiException } from './apiClient';
 
 type ClientModule = typeof import('./apiClient');
 
@@ -65,7 +66,9 @@ describe('apiClient — errores HTTP (FastAPI detail)', () => {
       vi.fn(async () => jsonResponse({ detail: 'producto 9 no encontrado' }, 404))
     );
 
-    const error: any = await client.request('/products/9').catch((e: any) => e);
+    const error = (await client
+      .request('/products/9')
+      .catch((e: unknown) => e)) as PriceScopeApiException;
 
     expect(error).toBeInstanceOf(client.PriceScopeApiException);
     expect(error.statusCode).toBe(404);
@@ -78,9 +81,9 @@ describe('apiClient — errores HTTP (FastAPI detail)', () => {
       vi.fn(async () => jsonResponse({ detail: [{ msg: 'invalid' }] }, 422))
     );
 
-    const error: any = await client
+    const error = (await client
       .request('/products', { method: 'POST' })
-      .catch((e: any) => e);
+      .catch((e: unknown) => e)) as PriceScopeApiException;
 
     expect(error.statusCode).toBe(422);
     expect(error.detail).toBeDefined();
@@ -109,7 +112,9 @@ describe('apiClient — semántica de mock (SPEC §2.3: sin fallback silencioso)
     );
     client.__setConfigForTests({ mock: false });
 
-    const error: any = await client.request('/health').catch((e: any) => e);
+    const error = (await client
+      .request('/health')
+      .catch((e: unknown) => e)) as Error;
 
     expect(error).toBeInstanceOf(TypeError);
     expect(error.message).toBe('network down');
@@ -127,7 +132,9 @@ describe('apiClient — semántica de mock (SPEC §2.3: sin fallback silencioso)
     // el usuario forzo live en dev, pero el backend esta caido
     client.setForceMockMode(false);
 
-    const error: any = await client.request('/health').catch((e: any) => e);
+    const error = (await client
+      .request('/health')
+      .catch((e: unknown) => e)) as Error;
     expect(error.message).toBe('MOCK_FALLBACK_TRIGGERED');
     expect(client.getIsMockMode()).toBe(true);
   });
@@ -138,7 +145,9 @@ describe('apiClient — semántica de mock (SPEC §2.3: sin fallback silencioso)
       vi.fn(async () => jsonResponse({ detail: 'boom' }, 500))
     );
 
-    const error: any = await client.request('/health').catch((e: any) => e);
+    const error = (await client
+      .request('/health')
+      .catch((e: unknown) => e)) as PriceScopeApiException;
     expect(error).toBeInstanceOf(client.PriceScopeApiException);
     expect(error.statusCode).toBe(500);
   });

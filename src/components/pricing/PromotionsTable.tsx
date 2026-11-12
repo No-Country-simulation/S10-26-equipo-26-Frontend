@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { PromotionSummaryItem } from '../../types/pricing';
 import { getActivePromotions } from '../../services/pricingService';
 import { useCurrency } from '../../context/CurrencyContext';
@@ -18,22 +18,24 @@ export const PromotionsTable: React.FC<PromotionsTableProps> = ({ onSelectProduc
   const [selectedStore, setSelectedStore] = useState('all');
   const [minDiscount, setMinDiscount] = useState<number>(0);
 
-  const loadPromos = async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const data = await getActivePromotions(selectedStore, minDiscount);
-      setPromos(data);
-    } catch {
-      setError('Error al consultar promociones vigentes.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const loadPromos = useCallback(() => {
+    return (async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const data = await getActivePromotions(selectedStore, minDiscount);
+        setPromos(data);
+      } catch {
+        setError('Error al consultar promociones vigentes.');
+      } finally {
+        setIsLoading(false);
+      }
+    })();
+  }, [selectedStore, minDiscount]);
 
   useEffect(() => {
-    loadPromos();
-  }, [selectedStore, minDiscount]);
+    void loadPromos();
+  }, [loadPromos]);
 
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-lg p-5 space-y-4">

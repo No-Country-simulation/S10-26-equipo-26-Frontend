@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { CanonicalProduct, ProductListing, MatchSuggestion } from '../../types/catalog';
 import {
   getProductListings,
@@ -49,29 +49,31 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   const [suggestionToConfirm, setSuggestionToConfirm] = useState<MatchSuggestion | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
 
-  const loadDetails = async () => {
-    if (!product) return;
-    setIsLoading(true);
-    setError(null);
-    try {
-      const [listingsData, allSuggestions] = await Promise.all([
-        getProductListings(product.id),
-        getMatchSuggestions(),
-      ]);
-      setListings(listingsData);
-      setSuggestions(allSuggestions.filter(s => s.canonicalProductId === product.id));
-    } catch {
-      setError('Error al cargar publicaciones asociadas.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const loadDetails = useCallback(() => {
+    return (async () => {
+      if (!product) return;
+      setIsLoading(true);
+      setError(null);
+      try {
+        const [listingsData, allSuggestions] = await Promise.all([
+          getProductListings(product.id),
+          getMatchSuggestions(),
+        ]);
+        setListings(listingsData);
+        setSuggestions(allSuggestions.filter(s => s.canonicalProductId === product.id));
+      } catch {
+        setError('Error al cargar publicaciones asociadas.');
+      } finally {
+        setIsLoading(false);
+      }
+    })();
+  }, [product]);
 
   useEffect(() => {
     if (isOpen && product) {
-      loadDetails();
+      void loadDetails();
     }
-  }, [isOpen, product]);
+  }, [isOpen, product, loadDetails]);
 
   const handleConfirmDisassociate = async () => {
     if (!product || !listingToDisassociate) return;
@@ -81,8 +83,12 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
       setListingToDisassociate(null);
       await loadDetails();
       onUpdate();
-    } catch (err: any) {
-      setError(err.message || 'Error al desasociar la publicación.');
+    } catch (err: unknown) {
+      setError(
+        err instanceof Error && err.message
+          ? err.message
+          : 'Error al desasociar la publicación.'
+      );
     } finally {
       setIsProcessing(false);
     }
