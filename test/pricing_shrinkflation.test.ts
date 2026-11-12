@@ -18,6 +18,11 @@ import {
 import { getProductPriceHistory } from '../src/services/pricingService';
 import { getShrinkflationAlerts, updateAlertStatus } from '../src/services/shrinkflationService';
 import { getActiveExchangeRate } from '../src/services/currencyService';
+import { setForceMockMode } from '../src/services/apiClient';
+
+// Este suite valida el flujo mock (SPEC §2.3): mock habilitado explícito,
+// sin fallback silencioso desde la capa de servicios.
+setForceMockMode(true);
 
 async function runTests() {
   console.log('--- PriceScope Test Suite Starting ---');

@@ -29,9 +29,9 @@ El equipo enfrenta tres problemas técnicos centrales (detalle en `problematica.
 
 Flujo de datos y orden de dependencias:
 
-- El backend define la API y el esquema; este repo la consume.
-- Puede desarrollarse con datos mockeados mientras la API no esté lista.
-- Orden de implementación sugerido: Backend → Data (en paralelo) → Frontend.
+- El backend define la API y el esquema; este repo la consume vía `/api/v1` (contrato §2.2 de `SPEC-IMPLEMENTACION.md`).
+- Los services (`catalogService`, `pricingService`, `currencyService`, `analyticsService`, `shrinkflationService`) apuntan a endpoints reales; el mock solo se activa con `VITE_ENABLE_MOCK=true` (dev sin backend) o el toggle de UI — **sin fallback silencioso en producción** (`src/services/mockGate.ts`).
+- Orden de implementación: Backend → Data (en paralelo) → Frontend.
 
 ## 2. Alcance del MVP
 

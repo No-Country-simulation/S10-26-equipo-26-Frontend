@@ -1,29 +1,31 @@
 /**
- * Currency Service
- * Obtains official and market exchange rates from Backend FastAPI.
- * Validates freshness, detects stale quotes, and guarantees no invented rates.
+ * Currency Service — contrato §2.2 Backend.
+ * Ruta: GET /exchange-rates/as-of?ts=...
+ * Mock solo via runWithMock (SPEC §2.3).
  */
 
 import { request } from './apiClient';
+import { runWithMock } from './mockGate';
 import { ExchangeRate } from '../types/currency';
+import { mapExchangeRate, type ApiHistorialDivisa } from './adapters';
 import { MOCK_EXCHANGE_RATE } from './mockData';
 
 export async function getActiveExchangeRate(): Promise<ExchangeRate> {
-  try {
-    const rate = await request<ExchangeRate>('/exchange-rates/active');
-    // Check if timestamp is older than 24h
-    const quoteTime = new Date(rate.timestamp).getTime();
-    const isStale = Date.now() - quoteTime > 24 * 3600 * 1000;
-    return {
-      ...rate,
-      isStale,
-    };
-  } catch {
-    const quoteTime = new Date(MOCK_EXCHANGE_RATE.timestamp).getTime();
-    const isStale = Date.now() - quoteTime > 24 * 3600 * 1000;
-    return {
-      ...MOCK_EXCHANGE_RATE,
-      isStale,
-    };
-  }
+  return runWithMock(
+    async () => {
+      const ts = new Date().toISOString();
+      const rate = await request<ApiHistorialDivisa>(
+        `/exchange-rates/as-of?ts=${encodeURIComponent(ts)}`
+      );
+      return mapExchangeRate(rate);
+    },
+    () => {
+      const quoteTime = new Date(MOCK_EXCHANGE_RATE.timestamp).getTime();
+      const isStale = Date.now() - quoteTime > 24 * 3600 * 1000;
+      return {
+        ...MOCK_EXCHANGE_RATE,
+        isStale,
+      };
+    }
+  );
 }

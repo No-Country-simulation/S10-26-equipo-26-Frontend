@@ -15,7 +15,7 @@ interface PricingOverviewProps {
 export const PricingOverview: React.FC<PricingOverviewProps> = ({ initialProductId }) => {
   const [products, setProducts] = useState<CanonicalProduct[]>([]);
   const [selectedProductId, setSelectedProductId] = useState<string>(
-    initialProductId || 'prod_aceite_cocinero_900'
+    initialProductId || ''
   );
   const [history, setHistory] = useState<ProductPriceHistory | null>(null);
   const [selectedPeriod, setSelectedPeriod] = useState<
