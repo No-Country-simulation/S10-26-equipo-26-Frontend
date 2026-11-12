@@ -514,85 +514,195 @@ export function mapPromotions(
 export interface DashboardCounts {
   productosTotal: number;
   tiendasCount: number;
-  listingsTotal: number;
-  promosActivas: number;
   shrinkAlerts: ApiAnomalyAlert[];
   inflation?: ApiInflationSeries;
   devaluation?: ApiDevaluationGap;
+  prices: ApiPricePoint[];
+  productos: Map<number, ApiProducto>;
+  categorias: Map<number, string>;
+}
+
+/** Última observación por par (producto, tienda). */
+function latestByPair(items: ApiPricePoint[]): Map<string, ApiPricePoint> {
+  const latest = new Map<string, ApiPricePoint>();
+  for (const p of items) {
+    if (p.producto_id == null || p.tienda_id == null) continue;
+    const key = `${p.producto_id}:${p.tienda_id}`;
+    const existing = latest.get(key);
+    if (!existing || p.timestamp > existing.timestamp) latest.set(key, p);
+  }
+  return latest;
+}
+
+/** Variación % de precio regular (no promo) primera vs última observación por producto. */
+function regularPriceVariations(
+  items: ApiPricePoint[]
+): Map<number, { variation: number; current: ApiPricePoint }> {
+  const byProduct = new Map<number, ApiPricePoint[]>();
+  for (const p of items) {
+    if (p.producto_id == null || p.is_promotion) continue;
+    const arr = byProduct.get(p.producto_id) || [];
+    arr.push(p);
+    byProduct.set(p.producto_id, arr);
+  }
+  const result = new Map<number, { variation: number; current: ApiPricePoint }>();
+  for (const [pid, rows] of byProduct) {
+    rows.sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+    const first = num(rows[0].precio_local);
+    const lastRow = rows[rows.length - 1];
+    const last = num(lastRow.precio_local);
+    if (first <= 0) continue;
+    result.set(pid, {
+      variation: ((last - first) / first) * 100,
+      current: lastRow,
+    });
+  }
+  return result;
 }
 
 export function mapDashboardSummary(counts: DashboardCounts): DashboardSummary {
   const shrink = counts.shrinkAlerts.filter(a => a.alert_type === 'shrinkflation');
   const confirmed = shrink.filter(a => a.status === 'reviewed').length;
 
+  // Listings = pares producto×tienda con precio observado (no de store_products,
+  // que puede estar vacío aunque haya precios).
+  const latest = latestByPair(counts.prices);
+  const listingsTotal = latest.size;
+  const latestPromos = [...latest.values()].filter(p => p.is_promotion);
+  const promosActivas = latestPromos.length;
+
   let periodInflationMoM = 0;
   if (counts.inflation && counts.inflation.series.length >= 2) {
     const series = counts.inflation.series;
+    const first = num(series[0].index);
     const last = num(series[series.length - 1].index);
-    const prev = num(series[series.length - 2].index);
-    if (prev > 0) periodInflationMoM = ((last - prev) / prev) * 100;
+    if (first > 0) periodInflationMoM = ((last - first) / first) * 100;
   }
 
   const priceVar = counts.devaluation ? num(counts.devaluation.price_variation) * 100 : 0;
 
+  // Top movers: subas de precio regular + mayores descuentos vigentes.
+  const variations = regularPriceVariations(counts.prices);
+  const topInflation = [...variations.entries()]
+    .filter(([, v]) => v.variation > 0)
+    .sort((a, b) => b[1].variation - a[1].variation)
+    .slice(0, 4)
+    .map(([pid, v]) => {
+      const producto = counts.productos.get(pid);
+      return {
+        productId: String(pid),
+        productName: producto?.nombre_universal || `Producto ${pid}`,
+        brand: (producto?.marca || '').trim() || 'Sin marca',
+        category:
+          producto?.categoria_id != null
+            ? counts.categorias.get(producto.categoria_id) || 'Sin categoría'
+            : 'Sin categoría',
+        increasePercentage: Number(v.variation.toFixed(1)),
+        currentPriceArs: num(v.current.precio_local),
+        currentPriceUsd: num(v.current.precio_usd) || undefined,
+      };
+    });
+
+  const topPromos = latestPromos
+    .map(p => ({
+      p,
+      discount: num(p.discount_pct) * 100,
+      producto: p.producto_id != null ? counts.productos.get(p.producto_id) : undefined,
+    }))
+    .filter(x => x.discount > 0)
+    .sort((a, b) => b.discount - a.discount)
+    .slice(0, 4)
+    .map(({ p, discount, producto }) => ({
+      productId: String(p.producto_id),
+      productName: producto?.nombre_universal || `Producto ${p.producto_id}`,
+      brand: (producto?.marca || '').trim() || 'Sin marca',
+      category:
+        producto?.categoria_id != null
+          ? counts.categorias.get(producto.categoria_id) || 'Sin categoría'
+          : 'Sin categoría',
+      decreasePercentage: Number(discount.toFixed(1)),
+      currentPriceArs: num(p.precio_local),
+      currentPriceUsd: num(p.precio_usd) || undefined,
+    }));
+
   return {
     monitoredProductsCount: counts.productosTotal,
     monitoredStoresCount: counts.tiendasCount,
-    trackedListingsCount: counts.listingsTotal,
-    activePromotionsCount: counts.promosActivas,
+    trackedListingsCount: listingsTotal,
+    activePromotionsCount: promosActivas,
     promotionsRatePercentage:
-      counts.listingsTotal > 0 ? (counts.promosActivas / counts.listingsTotal) * 100 : 0,
+      listingsTotal > 0 ? (promosActivas / listingsTotal) * 100 : 0,
     detectedShrinkflationAlertsCount: shrink.length,
     confirmedShrinkflationAlertsCount: confirmed,
     periodInflationMoM: Number(periodInflationMoM.toFixed(2)),
     periodInflationYoY: Number(priceVar.toFixed(2)),
     calculatedAt: new Date().toISOString(),
     calculationMethod: counts.inflation?.method || 'mediana móvil 7d, base 100',
-    topInflationProducts: [],
-    topDeflationOrPromoProducts: [],
+    topInflationProducts: topInflation,
+    topDeflationOrPromoProducts: topPromos,
   };
 }
 
-/** Dispersion por tienda desde precios recientes (índice base 100). */
+/** Dispersion por tienda desde la última observación por par (índice base 100). */
 export function mapStoreDispersion(
   items: ApiPricePoint[],
   tiendas: Map<number, Store>
 ): StoreDispersionItem[] {
-  const byStore = new Map<number, number[]>();
-  for (const p of items) {
-    if (p.tienda_id == null) continue;
-    const arr = byStore.get(p.tienda_id) || [];
-    arr.push(num(p.precio_local));
-    byStore.set(p.tienda_id, arr);
-  }
+  const latest = latestByPair(items);
+  if (latest.size === 0) return [];
 
-  const averages = Array.from(byStore.entries()).map(([id, prices]) => ({
-    id,
-    avg: prices.reduce((a, b) => a + b, 0) / prices.length,
-    count: prices.length,
-    promoCount: 0,
-  }));
-  const marketAvg = averages.length
-    ? averages.reduce((a, b) => a + b.avg, 0) / averages.length
-    : 0;
-
-  const promoByStore = new Map<number, number>();
-  for (const p of items) {
-    if (p.tienda_id != null && p.is_promotion) {
-      promoByStore.set(p.tienda_id, (promoByStore.get(p.tienda_id) || 0) + 1);
+  // Precio más bajo actual por producto (para "más económica en % de items").
+  const minByProduct = new Map<number, { storeId: number; price: number }>();
+  for (const p of latest.values()) {
+    if (p.producto_id == null || p.tienda_id == null) continue;
+    const price = num(p.precio_local);
+    const current = minByProduct.get(p.producto_id as number);
+    if (!current || price < current.price) {
+      minByProduct.set(p.producto_id as number, { storeId: p.tienda_id, price });
     }
   }
 
-  return averages.map(a => {
-    const store = tiendas.get(a.id);
-    const promos = promoByStore.get(a.id) || 0;
+  const byStore = new Map<
+    number,
+    { prices: number[]; promoDiscounts: number[]; cheapest: number }
+  >();
+  for (const p of latest.values()) {
+    if (p.tienda_id == null) continue;
+    const entry = byStore.get(p.tienda_id) || { prices: [], promoDiscounts: [], cheapest: 0 };
+    entry.prices.push(num(p.precio_local));
+    if (p.is_promotion && num(p.discount_pct) > 0) {
+      entry.promoDiscounts.push(num(p.discount_pct) * 100);
+    }
+    if (p.producto_id != null) {
+      const min = minByProduct.get(p.producto_id);
+      if (min && min.storeId === p.tienda_id) entry.cheapest += 1;
+    }
+    byStore.set(p.tienda_id, entry);
+  }
+
+  const stats = Array.from(byStore.entries()).map(([id, s]) => ({
+    id,
+    avg: s.prices.reduce((a, b) => a + b, 0) / s.prices.length,
+    count: s.prices.length,
+    promoDiscounts: s.promoDiscounts,
+    cheapest: s.cheapest,
+  }));
+  const marketAvg = stats.reduce((a, b) => a + b.avg, 0) / stats.length;
+
+  return stats.map(s => {
+    const store = tiendas.get(s.id);
+    const avgDiscount =
+      s.promoDiscounts.length > 0
+        ? s.promoDiscounts.reduce((a, b) => a + b, 0) / s.promoDiscounts.length
+        : 0;
     return {
-      storeId: String(a.id),
-      storeName: store?.name || `Tienda ${a.id}`,
-      averagePriceIndex: marketAvg > 0 ? Number(((a.avg / marketAvg) * 100).toFixed(1)) : 100,
-      cheapestProductsPercentage: 0,
-      averageDiscountPercentage: a.count > 0 ? Number(((promos / a.count) * 100).toFixed(1)) : 0,
-      totalMonitoredListings: a.count,
+      storeId: String(s.id),
+      storeName: store?.name || `Tienda ${s.id}`,
+      averagePriceIndex: marketAvg > 0 ? Number(((s.avg / marketAvg) * 100).toFixed(1)) : 100,
+      cheapestProductsPercentage:
+        s.count > 0 ? Number(((s.cheapest / s.count) * 100).toFixed(0)) : 0,
+      averageDiscountPercentage: Number(avgDiscount.toFixed(1)),
+      totalMonitoredListings: s.count,
       stockAvailabilityPercentage: 100,
     };
   });

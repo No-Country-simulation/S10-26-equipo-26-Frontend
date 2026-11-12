@@ -11,6 +11,8 @@ import {
   mapAlertStatusToApi,
   mapPriceHistory,
   mapMatchSuggestion,
+  mapDashboardSummary,
+  mapStoreDispersion,
   type ApiCategoria,
   type ApiHistorialDivisa,
   type ApiInflationSeries,
@@ -259,4 +261,127 @@ beforeEach(() => {
 });
 afterEach(() => {
   vi.restoreAllMocks();
+});
+
+describe('mapDashboardSummary (contratos con datos reales)', () => {
+  const producto = (id: number, name: string, marca = 'Marca'): ApiProducto => ({
+    id,
+    nombre_universal: name,
+    categoria_id: 1,
+    unidad_medida: '1 kg',
+    marca,
+  });
+
+  const price = (over: Partial<ApiPricePoint>): ApiPricePoint => ({
+    id: 1,
+    timestamp: '2026-11-01T10:00:00Z',
+    producto_id: 1,
+    tienda_id: 3,
+    precio_local: 1000,
+    precio_tachado: null,
+    en_oferta: false,
+    tipo_cambio_usado: 1500,
+    precio_usd: 0.67,
+    is_promotion: false,
+    price_regular: 1000,
+    discount_pct: 0,
+    ...over,
+  });
+
+  it('lista = pares producto-tienda con precio (no store_products)', () => {
+    const summary = mapDashboardSummary({
+      productosTotal: 15,
+      tiendasCount: 3,
+      shrinkAlerts: [],
+      prices: [
+        price({ id: 1, producto_id: 1 }),
+        price({ id: 2, producto_id: 1, timestamp: '2026-11-02T10:00:00Z' }),
+        price({ id: 3, producto_id: 2 }),
+      ],
+      productos: new Map([[1, producto(1, 'Arroz')], [2, producto(2, 'Aceite')]]),
+      categorias: new Map([[1, 'Alimentos']]),
+    });
+    expect(summary.trackedListingsCount).toBe(2);
+    expect(summary.activePromotionsCount).toBe(0);
+    expect(summary.promotionsRatePercentage).toBe(0);
+  });
+
+  it('promos = �ltima observaci�n por par, no todas las hist�ricas', () => {
+    const summary = mapDashboardSummary({
+      productosTotal: 2,
+      tiendasCount: 1,
+      shrinkAlerts: [],
+      prices: [
+        price({ id: 1, producto_id: 1, is_promotion: true, discount_pct: 0.2 }),
+        price({ id: 2, producto_id: 1, timestamp: '2026-11-05T10:00:00Z' }),
+        price({ id: 3, producto_id: 2, timestamp: '2026-11-05T10:00:00Z', is_promotion: true, discount_pct: 0.15 }),
+      ],
+      productos: new Map([[1, producto(1, 'Arroz')], [2, producto(2, 'Aceite')]]),
+      categorias: new Map([[1, 'Alimentos']]),
+    });
+    // p1 termina sin promo; p2 termina con promo
+    expect(summary.activePromotionsCount).toBe(1);
+    expect(summary.trackedListingsCount).toBe(2);
+    expect(summary.promotionsRatePercentage).toBe(50);
+    expect(summary.topDeflationOrPromoProducts).toHaveLength(1);
+    expect(summary.topDeflationOrPromoProducts[0].decreasePercentage).toBe(15);
+  });
+
+  it('topInflation: subida de precio regular primera vs �ltima', () => {
+    const summary = mapDashboardSummary({
+      productosTotal: 1,
+      tiendasCount: 1,
+      shrinkAlerts: [],
+      prices: [
+        price({ id: 1, producto_id: 1, precio_local: 1000, timestamp: '2026-11-01T10:00:00Z' }),
+        price({ id: 2, producto_id: 1, precio_local: 1200, timestamp: '2026-11-10T10:00:00Z' }),
+      ],
+      productos: new Map([[1, producto(1, 'Arroz')]]),
+      categorias: new Map([[1, 'Alimentos']]),
+    });
+    expect(summary.topInflationProducts).toHaveLength(1);
+    expect(summary.topInflationProducts[0].increasePercentage).toBe(20);
+    expect(summary.topInflationProducts[0].productName).toBe('Arroz');
+    expect(summary.topInflationProducts[0].category).toBe('Alimentos');
+  });
+});
+
+describe('mapStoreDispersion', () => {
+  it('usa �ltima obs por par; cheapest% y descuento real', () => {
+    const tiendas = new Map([
+      [1, mapStore({ id: 1, nombre: 'Coto', url_base: null })],
+      [2, mapStore({ id: 2, nombre: 'Carrefour', url_base: null })],
+    ]);
+    const p = (over: Partial<ApiPricePoint>): ApiPricePoint => ({
+      id: 1,
+      timestamp: '2026-11-01T10:00:00Z',
+      producto_id: 1,
+      tienda_id: 1,
+      precio_local: 1000,
+      precio_tachado: null,
+      en_oferta: false,
+      tipo_cambio_usado: 1500,
+      precio_usd: 0.67,
+      is_promotion: false,
+      price_regular: 1000,
+      discount_pct: 0,
+      ...over,
+    });
+    const items = [
+      p({ id: 1, tienda_id: 1, producto_id: 1, precio_local: 900 }),
+      p({ id: 2, tienda_id: 2, producto_id: 1, precio_local: 1100, timestamp: '2026-11-02T10:00:00Z' }),
+      p({ id: 3, tienda_id: 2, producto_id: 2, precio_local: 500, is_promotion: true, discount_pct: 0.25, timestamp: '2026-11-02T10:00:00Z' }),
+    ];
+    const result = mapStoreDispersion(items, tiendas);
+    expect(result).toHaveLength(2);
+    const coto = result.find(s => s.storeName === 'Coto')!;
+    const carrefour = result.find(s => s.storeName === 'Carrefour')!;
+    // Coto m�s barata en producto 1; Carrefour �nica en producto 2
+    // Coto: 1 de 1 mas barata (100%); Carrefour: 1 de 2 (50%)
+    expect(coto.cheapestProductsPercentage).toBe(100);
+    expect(carrefour.cheapestProductsPercentage).toBe(50);
+    expect(carrefour.averageDiscountPercentage).toBe(25);
+    expect(coto.averageDiscountPercentage).toBe(0);
+    expect(coto.totalMonitoredListings).toBe(1);
+  });
 });

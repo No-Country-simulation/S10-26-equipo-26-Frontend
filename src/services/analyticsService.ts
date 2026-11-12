@@ -19,6 +19,7 @@ import {
   mapStore,
   mapStoreDispersion,
   type ApiAnomalyAlert,
+  type ApiCategoria,
   type ApiDevaluationGap,
   type ApiInflationSeries,
   type ApiPriceHistoryList,
@@ -41,11 +42,11 @@ function daysAgo(n: number): string {
 export async function getDashboardSummary(): Promise<DashboardSummary> {
   return runWithMock(
     async () => {
-      const [productos, tiendas, sps, promos, shrinkAlerts, inflation, devaluation] =
+      const [productos, categorias, tiendas, prices, shrinkAlerts, inflation, devaluation] =
         await Promise.all([
-          request<ApiProductoList>('/products?page_size=1'),
+          request<ApiProductoList>('/products?page_size=100'),
+          request<ApiCategoria[]>('/products/categories'),
           request<ApiTienda[]>('/stores'),
-          request<unknown[]>('/store-products'),
           request<ApiPriceHistoryList>('/prices/history?page_size=500'),
           request<ApiAnomalyAlert[]>('/alerts?type=shrinkflation'),
           request<ApiInflationSeries>(
@@ -59,11 +60,12 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
       const counts: DashboardCounts = {
         productosTotal: productos.total,
         tiendasCount: tiendas.length,
-        listingsTotal: sps.length,
-        promosActivas: promos.items.filter(p => p.is_promotion).length,
         shrinkAlerts,
         inflation,
         devaluation,
+        prices: prices.items,
+        productos: new Map(productos.items.map(p => [p.id, p])),
+        categorias: new Map(categorias.map(c => [c.id, c.nombre])),
       };
       return mapDashboardSummary(counts);
     },
