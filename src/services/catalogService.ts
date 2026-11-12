@@ -52,6 +52,40 @@ async function fetchCategoriasApi(): Promise<Map<number, string>> {
   return new Map(raw.map(c => [c.id, c.nombre]));
 }
 
+export interface CategoryOption {
+  id: number;
+  nombre: string;
+}
+
+/** Opciones de categoría desde el Backend (fallback mock: categorías del dataset). */
+export async function getCategories(): Promise<CategoryOption[]> {
+  return runWithMock(
+    async () => request<ApiCategoria[]>('/products/categories'),
+    () => {
+      const seen = new Map<string, number>();
+      MOCK_PRODUCTS.forEach((p, i) => {
+        if (!seen.has(p.category)) seen.set(p.category, i + 1);
+      });
+      return [...seen].map(([nombre, id]) => ({ id, nombre }));
+    }
+  );
+}
+
+/** Marcas reales para el filtro del catálogo (fallback mock: marcas del dataset). */
+export async function getBrandOptions(): Promise<string[]> {
+  return runWithMock(
+    async () => {
+      const res = await request<ApiProductoList>('/products?page=1&page_size=100');
+      const brands = new Set<string>();
+      for (const p of res.items) {
+        if (p.marca) brands.add(p.marca.trim());
+      }
+      return [...brands].sort((a, b) => a.localeCompare(b, 'es'));
+    },
+    () => [...new Set(MOCK_PRODUCTS.map(p => p.brand))].sort((a, b) => a.localeCompare(b, 'es'))
+  );
+}
+
 async function fetchAlertProductoIds(): Promise<Set<number>> {
   const alerts = await request<Array<{ producto_id: number | null }>>(
     '/alerts?type=shrinkflation'
@@ -152,14 +186,18 @@ export async function getProducts(
 ): Promise<PaginatedResponse<CanonicalProduct>> {
   return runWithMock(
     async () => {
+      const categorias = await fetchCategoriasApi();
       const qs = new URLSearchParams();
       if (params.query) qs.set('search', params.query);
+      if (params.category && params.category !== 'all') {
+        const match = [...categorias].find(([, nombre]) => nombre === params.category);
+        if (match) qs.set('category_id', String(match[0]));
+      }
       if (params.page) qs.set('page', String(params.page));
       if (params.pageSize) qs.set('page_size', String(params.pageSize));
 
-      const [listRes, categorias, prices, alertIds] = await Promise.all([
+      const [listRes, prices, alertIds] = await Promise.all([
         request<ApiProductoList>(`/products?${qs.toString()}`),
-        fetchCategoriasApi(),
         fetchPricesApi(),
         params.hasAlert ? fetchAlertProductoIds() : Promise.resolve(new Set<number>()),
       ]);

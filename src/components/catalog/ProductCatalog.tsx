@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { CanonicalProduct, CatalogFilterParams } from '../../types/catalog';
-import { getProducts } from '../../services/catalogService';
+import { getProducts, getCategories, getBrandOptions, CategoryOption } from '../../services/catalogService';
 import { useCurrency } from '../../context/CurrencyContext';
 import { TableSkeleton } from '../common/LoadingSkeleton';
 import { EmptyState } from '../common/EmptyState';
@@ -27,9 +27,12 @@ export const ProductCatalog: React.FC<ProductCatalogProps> = ({ onViewPriceHisto
   const [currentPage, setCurrentPage] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [categoryOptions, setCategoryOptions] = useState<CategoryOption[]>([]);
+  const [brandOptions, setBrandOptions] = useState<string[]>([]);
 
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
+  const [appliedQuery, setAppliedQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedBrand, setSelectedBrand] = useState<string>('all');
   const [onlyAlerts, setOnlyAlerts] = useState<boolean>(false);
@@ -41,39 +44,59 @@ export const ProductCatalog: React.FC<ProductCatalogProps> = ({ onViewPriceHisto
 
   const pageSize = 8;
 
-  const loadCatalog = async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const response = await getProducts({
-        query: searchQuery,
-        category: selectedCategory,
-        brand: selectedBrand,
-        hasAlert: onlyAlerts || undefined,
-        page: currentPage,
-        pageSize,
-        sortBy,
-        sortDirection,
-      });
-      setProducts(response.items);
-      setTotalItems(response.total);
-      setTotalPages(response.totalPages);
-    } catch (err: any) {
-      setError(err.message || 'Error al cargar productos del catálogo.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const loadCatalog = useCallback(() => {
+    return (async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const [response, categorias, brands] = await Promise.all([
+          getProducts({
+            query: appliedQuery,
+            category: selectedCategory,
+            brand: selectedBrand,
+            hasAlert: onlyAlerts || undefined,
+            page: currentPage,
+            pageSize,
+            sortBy,
+            sortDirection,
+          }),
+          getCategories(),
+          getBrandOptions(),
+        ]);
+        setProducts(response.items);
+        setTotalItems(response.total);
+        setTotalPages(response.totalPages);
+        setCategoryOptions(categorias);
+        setBrandOptions(brands);
+      } catch (err: unknown) {
+        setError(
+          err instanceof Error && err.message
+            ? err.message
+            : 'Error al cargar productos del catálogo.'
+        );
+      } finally {
+        setIsLoading(false);
+      }
+    })();
+  }, [
+    appliedQuery,
+    currentPage,
+    selectedCategory,
+    selectedBrand,
+    onlyAlerts,
+    sortBy,
+    sortDirection,
+  ]);
 
   useEffect(() => {
-    loadCatalog();
-  }, [currentPage, selectedCategory, selectedBrand, onlyAlerts, sortBy, sortDirection]);
+    void loadCatalog();
+  }, [loadCatalog]);
 
   // Debounced search trigger
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setAppliedQuery(searchQuery);
     setCurrentPage(1);
-    loadCatalog();
   };
 
   const handleToggleSort = (field: CatalogFilterParams['sortBy']) => {
@@ -113,11 +136,11 @@ export const ProductCatalog: React.FC<ProductCatalogProps> = ({ onViewPriceHisto
               className="text-xs bg-slate-950 border border-slate-700 text-slate-300 rounded px-2.5 py-1.5 focus:outline-none focus:border-blue-500"
             >
               <option value="all">Todas las categorías</option>
-              <option value="Almacén">Almacén</option>
-              <option value="Limpieza">Limpieza</option>
-              <option value="Lácteos y Frescos">Lácteos y Frescos</option>
-              <option value="Cuidado Personal">Cuidado Personal</option>
-              <option value="Snacks y Golosinas">Snacks y Golosinas</option>
+              {categoryOptions.map(c => (
+                <option key={c.id} value={c.nombre}>
+                  {c.nombre}
+                </option>
+              ))}
             </select>
 
             <select
@@ -129,14 +152,11 @@ export const ProductCatalog: React.FC<ProductCatalogProps> = ({ onViewPriceHisto
               className="text-xs bg-slate-950 border border-slate-700 text-slate-300 rounded px-2.5 py-1.5 focus:outline-none focus:border-blue-500"
             >
               <option value="all">Todas las marcas</option>
-              <option value="Cocinero">Cocinero</option>
-              <option value="Skip">Skip</option>
-              <option value="Bagley">Bagley</option>
-              <option value="La Serenísima">La Serenísima</option>
-              <option value="Colgate">Colgate</option>
-              <option value="Gallo Oro">Gallo Oro</option>
-              <option value="La Virginia">La Virginia</option>
-              <option value="Lay's">Lay's</option>
+              {brandOptions.map(brand => (
+                <option key={brand} value={brand}>
+                  {brand}
+                </option>
+              ))}
             </select>
 
             <button
@@ -182,6 +202,7 @@ export const ProductCatalog: React.FC<ProductCatalogProps> = ({ onViewPriceHisto
             actionLabel="Limpiar filtros"
             onAction={() => {
               setSearchQuery('');
+              setAppliedQuery('');
               setSelectedCategory('all');
               setSelectedBrand('all');
               setOnlyAlerts(false);
