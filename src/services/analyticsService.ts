@@ -39,31 +39,63 @@ function daysAgo(n: number): string {
   return d.toISOString().slice(0, 10);
 }
 
-export async function getDashboardSummary(): Promise<DashboardSummary> {
+/** Filtros compartidos del dashboard ejecutivo (HU 3.6). */
+export interface DashboardFilterParams {
+  periodDays?: number;
+  categoryId?: number | 'all';
+  storeId?: string | 'all';
+}
+
+export async function getDashboardSummary(
+  filters: DashboardFilterParams = {}
+): Promise<DashboardSummary> {
+  const periodDays = filters.periodDays ?? 90;
+  const start = daysAgo(periodDays);
+  const categoryId = filters.categoryId ?? 'all';
+  const storeId = filters.storeId ?? 'all';
   return runWithMock(
     async () => {
+      const productsQs = new URLSearchParams({ page_size: '100' });
+      if (categoryId !== 'all') productsQs.set('category_id', String(categoryId));
+      const pricesQs = new URLSearchParams({ page_size: '500', start });
+      if (storeId !== 'all') pricesQs.set('tienda_id', storeId);
+
       const [productos, categorias, tiendas, prices, shrinkAlerts, inflation, devaluation] =
         await Promise.all([
-          request<ApiProductoList>('/products?page_size=100'),
+          request<ApiProductoList>(`/products?${productsQs.toString()}`),
           request<ApiCategoria[]>('/products/categories'),
           request<ApiTienda[]>('/stores'),
-          request<ApiPriceHistoryList>('/prices/history?page_size=500'),
+          request<ApiPriceHistoryList>(`/prices/history?${pricesQs.toString()}`),
           request<ApiAnomalyAlert[]>('/alerts?type=shrinkflation'),
           request<ApiInflationSeries>(
-            `/indicators/inflation?start_date=${daysAgo(90)}&end_date=${daysAgo(0)}`
+            `/indicators/inflation?start_date=${start}&end_date=${daysAgo(0)}` +
+              (categoryId !== 'all' ? `&category_id=${categoryId}` : '')
           ).catch(() => undefined),
           request<ApiDevaluationGap>(
-            `/indicators/devaluation-gap?start_date=${daysAgo(30)}&end_date=${daysAgo(0)}`
+            `/indicators/devaluation-gap?start_date=${start}&end_date=${daysAgo(0)}`
           ).catch(() => undefined),
         ]);
+
+      let priceItems = prices.items;
+      let alerts = shrinkAlerts;
+      if (categoryId !== 'all') {
+        const ids = new Set(productos.items.map(p => p.id));
+        priceItems = priceItems.filter(p => p.producto_id != null && ids.has(p.producto_id));
+        alerts = alerts.filter(a => a.producto_id != null && ids.has(a.producto_id));
+      }
+      if (storeId !== 'all') {
+        const storeNum = Number(storeId);
+        priceItems = priceItems.filter(p => p.tienda_id === storeNum);
+        alerts = alerts.filter(a => a.tienda_id === storeNum);
+      }
 
       const counts: DashboardCounts = {
         productosTotal: productos.total,
         tiendasCount: tiendas.length,
-        shrinkAlerts,
+        shrinkAlerts: alerts,
         inflation,
         devaluation,
-        prices: prices.items,
+        prices: priceItems,
         productos: new Map(productos.items.map(p => [p.id, p])),
         categorias: new Map(categorias.map(c => [c.id, c.nombre])),
       };
@@ -74,13 +106,15 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
 }
 
 export async function getInflationTimeSeries(
-  months: number = 6
+  periodDays: number = 180,
+  categoryId: number | 'all' = 'all'
 ): Promise<InflationMetricPoint[]> {
   return runWithMock(
     async () => {
-      const start = daysAgo(months * 30);
+      const start = daysAgo(periodDays);
       const series = await request<ApiInflationSeries>(
-        `/indicators/inflation?start_date=${start}&end_date=${daysAgo(0)}`
+        `/indicators/inflation?start_date=${start}&end_date=${daysAgo(0)}` +
+          (categoryId !== 'all' ? `&category_id=${categoryId}` : '')
       );
       return mapInflationSeries(series);
     },
@@ -88,15 +122,20 @@ export async function getInflationTimeSeries(
   );
 }
 
-export async function getStoreDispersion(): Promise<StoreDispersionItem[]> {
+export async function getStoreDispersion(
+  periodDays?: number,
+  storeId: string | 'all' = 'all'
+): Promise<StoreDispersionItem[]> {
   return runWithMock(
     async () => {
+      const qs = new URLSearchParams({ page_size: '500', start: daysAgo(periodDays ?? 180) });
       const [pricesRaw, tiendasRaw] = await Promise.all([
-        request<ApiPriceHistoryList>('/prices/history?page_size=500'),
+        request<ApiPriceHistoryList>(`/prices/history?${qs.toString()}`),
         request<ApiTienda[]>('/stores'),
       ]);
       const tiendas = new Map(tiendasRaw.map(t => [t.id, mapStore(t)]));
-      return mapStoreDispersion(pricesRaw.items, tiendas);
+      const items = mapStoreDispersion(pricesRaw.items, tiendas);
+      return storeId === 'all' ? items : items.filter(s => s.storeId === storeId);
     },
     () => MOCK_STORE_DISPERSION
   );

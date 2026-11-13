@@ -3,15 +3,27 @@ import { InflationMetricPoint } from '../../types/analytics';
 import { useCurrency } from '../../context/CurrencyContext';
 import { TrendingUp } from 'lucide-react';
 
-interface InflationChartProps {
-  series: InflationMetricPoint[];
+interface CategoryTab {
+  id: number | 'all';
+  nombre: string;
 }
 
-export const InflationChart: React.FC<InflationChartProps> = ({ series }) => {
+interface InflationChartProps {
+  series: InflationMetricPoint[];
+  isLoading?: boolean;
+  categories: CategoryTab[];
+  selectedCategoryId: number | 'all';
+  onSelectCategory: (id: number | 'all') => void;
+}
+
+export const InflationChart: React.FC<InflationChartProps> = ({
+  series,
+  isLoading = false,
+  categories,
+  selectedCategoryId,
+  onSelectCategory,
+}) => {
   const { formatMoney } = useCurrency();
-  const [selectedMetric, setSelectedMetric] = useState<
-    'headline' | 'food' | 'personalCare' | 'cleaning'
-  >('headline');
 
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
 
@@ -25,18 +37,7 @@ export const InflationChart: React.FC<InflationChartProps> = ({ series }) => {
   const innerWidth = width - paddingLeft - paddingRight;
   const innerHeight = height - paddingTop - paddingBottom;
 
-  const getMetricValue = (item: InflationMetricPoint) => {
-    switch (selectedMetric) {
-      case 'food':
-        return item.foodAndBeverageMoM;
-      case 'personalCare':
-        return item.personalCareMoM;
-      case 'cleaning':
-        return item.householdCleaningMoM;
-      default:
-        return item.headlineInflationMoM;
-    }
-  };
+  const getMetricValue = (item: InflationMetricPoint) => item.headlineInflationMoM;
 
   const values = series.map(getMetricValue);
   const minVal = Math.min(...values);
@@ -73,56 +74,46 @@ export const InflationChart: React.FC<InflationChartProps> = ({ series }) => {
           </p>
         </div>
 
-        {/* Metric Segmented Buttons */}
-        <div className="flex items-center gap-1 p-1 bg-slate-950 border border-slate-800 rounded-lg text-xs">
+        {/* Category Segmented Buttons (compartidos con el filtro del dashboard) */}
+        <div className="flex flex-wrap items-center gap-1 p-1 bg-slate-950 border border-slate-800 rounded-lg text-xs">
           <button
             type="button"
-            onClick={() => setSelectedMetric('headline')}
+            onClick={() => onSelectCategory('all')}
             className={`px-2 py-1 rounded font-medium transition-colors ${
-              selectedMetric === 'headline'
+              selectedCategoryId === 'all'
                 ? 'bg-blue-600 text-white'
                 : 'text-slate-400 hover:text-slate-200'
             }`}
           >
             General
           </button>
-          <button
-            type="button"
-            onClick={() => setSelectedMetric('food')}
-            className={`px-2 py-1 rounded font-medium transition-colors ${
-              selectedMetric === 'food'
-                ? 'bg-blue-600 text-white'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            Alimentos
-          </button>
-          <button
-            type="button"
-            onClick={() => setSelectedMetric('cleaning')}
-            className={`px-2 py-1 rounded font-medium transition-colors ${
-              selectedMetric === 'cleaning'
-                ? 'bg-blue-600 text-white'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            Limpieza
-          </button>
-          <button
-            type="button"
-            onClick={() => setSelectedMetric('personalCare')}
-            className={`px-2 py-1 rounded font-medium transition-colors ${
-              selectedMetric === 'personalCare'
-                ? 'bg-blue-600 text-white'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            Cuidado Personal
-          </button>
+          {categories.map(cat => (
+            <button
+              key={cat.id}
+              type="button"
+              onClick={() => onSelectCategory(cat.id)}
+              className={`px-2 py-1 rounded font-medium transition-colors ${
+                selectedCategoryId === cat.id
+                  ? 'bg-blue-600 text-white'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              {cat.nombre}
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* SVG Chart */}
+      {/* Loading / Empty states */}
+      {isLoading && (
+        <div className="relative w-full aspect-[21/9] min-h-[220px] bg-slate-950/80 border border-slate-800 rounded p-2 animate-pulse" />
+      )}
+      {!isLoading && series.length === 0 && (
+        <div className="relative w-full aspect-[21/9] min-h-[220px] bg-slate-950/80 border border-slate-800 rounded p-2 flex items-center justify-center text-xs text-slate-500">
+          Sin datos de inflación para el período / categoría seleccionados.
+        </div>
+      )}
+      {!isLoading && series.length > 0 && (
       <div className="relative w-full aspect-[21/9] min-h-[220px] bg-slate-950/80 border border-slate-800 rounded p-2 overflow-hidden">
         <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full overflow-visible">
           <defs>
@@ -247,6 +238,7 @@ export const InflationChart: React.FC<InflationChartProps> = ({ series }) => {
           </div>
         )}
       </div>
+      )}
 
       <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1 border-t border-slate-800">
         <span>Fuente: Indicadores de inflación calculados por el Backend (TimescaleDB).</span>

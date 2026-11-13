@@ -1,49 +1,108 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { DashboardSummary, InflationMetricPoint, StoreDispersionItem } from '../../types/analytics';
 import {
   getDashboardSummary,
   getInflationTimeSeries,
   getStoreDispersion,
 } from '../../services/analyticsService';
+import { getCategories, getStores, CategoryOption } from '../../services/catalogService';
+import type { Store } from '../../types/catalog';
 import { MetricsGrid } from './MetricsGrid';
 import { InflationChart } from './InflationChart';
 import { StoreComparisonWidget } from './StoreComparisonWidget';
 import { RecentAlertsWidget } from './RecentAlertsWidget';
 import { CardSkeleton, TableSkeleton } from '../common/LoadingSkeleton';
-import { ArrowRight, ShoppingCart, Tag, ShieldAlert, Sparkles } from 'lucide-react';
+import { ArrowRight, ShoppingCart, Tag, ShieldAlert, Sparkles, Filter } from 'lucide-react';
 
 interface DashboardViewProps {
   onNavigateTab: (tab: 'catalog' | 'pricing' | 'shrinkflation') => void;
 }
+
+const PERIOD_OPTIONS = [30, 90, 180] as const;
 
 export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateTab }) => {
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [inflationSeries, setInflationSeries] = useState<InflationMetricPoint[]>([]);
   const [storeDispersion, setStoreDispersion] = useState<StoreDispersionItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [chartLoading, setChartLoading] = useState(true);
+
+  // Filtros del tablero ejecutivo (HU 3.6): período / categoría / tienda.
+  // La moneda es global (TopNav CurrencySelector).
+  const [periodDays, setPeriodDays] = useState<number>(90);
+  const [categoryId, setCategoryId] = useState<number | 'all'>('all');
+  const [storeId, setStoreId] = useState<string | 'all'>('all');
+  const [categories, setCategories] = useState<CategoryOption[]>([]);
+  const [stores, setStores] = useState<Store[]>([]);
+
+  const loadFilterOptions = useCallback(() => {
+    void (async () => {
+      try {
+        const [cats, sts] = await Promise.all([getCategories(), getStores()]);
+        setCategories(cats);
+        setStores(sts);
+      } catch (err) {
+        console.error('Error loading filter options', err);
+      }
+    })();
+  }, []);
 
   useEffect(() => {
-    async function loadData() {
+    void loadFilterOptions();
+  }, [loadFilterOptions]);
+
+  const loadSummary = useCallback(() => {
+    void (async () => {
       setIsLoading(true);
       try {
-        const [sum, series, dispersion] = await Promise.all([
-          getDashboardSummary(),
-          getInflationTimeSeries(6),
-          getStoreDispersion(),
-        ]);
+        const sum = await getDashboardSummary({ periodDays, categoryId, storeId });
         setSummary(sum);
-        setInflationSeries(series);
-        setStoreDispersion(dispersion);
       } catch (err) {
         console.error('Error loading dashboard analytics', err);
       } finally {
         setIsLoading(false);
       }
-    }
-    loadData();
-  }, []);
+    })();
+  }, [periodDays, categoryId, storeId]);
 
-  if (isLoading || !summary) {
+  useEffect(() => {
+    void loadSummary();
+  }, [loadSummary]);
+
+  const loadChart = useCallback(() => {
+    void (async () => {
+      setChartLoading(true);
+      try {
+        const series = await getInflationTimeSeries(periodDays, categoryId);
+        setInflationSeries(series);
+      } catch (err) {
+        console.error('Error loading inflation series', err);
+      } finally {
+        setChartLoading(false);
+      }
+    })();
+  }, [periodDays, categoryId]);
+
+  useEffect(() => {
+    void loadChart();
+  }, [loadChart]);
+
+  const loadDispersion = useCallback(() => {
+    void (async () => {
+      try {
+        const dispersion = await getStoreDispersion(periodDays, storeId);
+        setStoreDispersion(dispersion);
+      } catch (err) {
+        console.error('Error loading store dispersion', err);
+      }
+    })();
+  }, [periodDays, storeId]);
+
+  useEffect(() => {
+    void loadDispersion();
+  }, [loadDispersion]);
+
+  if (isLoading && !summary) {
     return (
       <div className="space-y-6">
         <CardSkeleton count={4} />
@@ -51,16 +110,74 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateTab }) =
       </div>
     );
   }
+  if (!summary) return null;
+
+  const selectClass =
+    'text-xs bg-slate-950 border border-slate-700 text-slate-300 rounded px-2.5 py-1.5 focus:outline-none focus:border-blue-500';
 
   return (
     <div className="space-y-6">
+      {/* Filter toolbar — coherente en todos los widgets (HU 3.6) */}
+      <div className="p-3.5 bg-slate-900 border border-slate-800 rounded-lg flex flex-wrap items-center justify-end gap-2.5">
+        <span className="text-xs text-slate-400 mr-auto flex items-center gap-1.5">
+          <Filter className="w-3.5 h-3.5" />
+          Filtros del tablero:
+        </span>
+        <select
+          value={periodDays}
+          onChange={e => setPeriodDays(Number(e.target.value))}
+          className={selectClass}
+          aria-label="Período"
+        >
+          {PERIOD_OPTIONS.map(d => (
+            <option key={d} value={d}>
+              Últimos {d} días
+            </option>
+          ))}
+        </select>
+        <select
+          value={categoryId}
+          onChange={e =>
+            setCategoryId(e.target.value === 'all' ? 'all' : Number(e.target.value))
+          }
+          className={selectClass}
+          aria-label="Categoría"
+        >
+          <option value="all">Todas las categorías</option>
+          {categories.map(c => (
+            <option key={c.id} value={c.id}>
+              {c.nombre}
+            </option>
+          ))}
+        </select>
+        <select
+          value={storeId}
+          onChange={e => setStoreId(e.target.value)}
+          className={selectClass}
+          aria-label="Tienda"
+        >
+          <option value="all">Todas las tiendas</option>
+          {stores.map(s => (
+            <option key={s.id} value={s.id}>
+              {s.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
       {/* KPI Metrics */}
-      <MetricsGrid summary={summary} />
+      <MetricsGrid summary={summary} periodDays={periodDays} />
 
       {/* Main Analysis Grid: Inflation Time-series & Store Dispersion */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
-          <InflationChart series={inflationSeries} />
+          <InflationChart
+            series={inflationSeries}
+            isLoading={chartLoading}
+            categories={categories}
+            selectedCategoryId={categoryId}
+            onSelectCategory={setCategoryId}
+          />
         </div>
 
         {/* Quick Actions & Navigation Callout */}
