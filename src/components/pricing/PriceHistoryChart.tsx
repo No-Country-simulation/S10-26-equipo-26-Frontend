@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+﻿import React, { useState, useMemo } from 'react';
 import { ProductPriceHistory, StorePricePoint } from '../../types/pricing';
 import { useCurrency } from '../../context/CurrencyContext';
 import { Tag, TrendingUp } from 'lucide-react';
@@ -9,14 +9,13 @@ interface PriceHistoryChartProps {
   onPeriodChange: (period: '7d' | '30d' | '90d' | '180d' | '1y' | 'all') => void;
 }
 
-const STORE_COLORS: Record<string, { stroke: string; fill: string; border: string }> = {
-  store_coto: { stroke: '#3b82f6', fill: '#1d4ed8', border: 'border-blue-500' }, // Blue
-  store_carrefour: { stroke: '#06b6d4', fill: '#0891b2', border: 'border-cyan-500' }, // Cyan
-  store_dia: { stroke: '#ef4444', fill: '#b91c1c', border: 'border-red-500' }, // Red
-  store_jumbo: { stroke: '#10b981', fill: '#047857', border: 'border-emerald-500' }, // Emerald
-};
-
-const DEFAULT_COLOR = { stroke: '#a855f7', fill: '#7e22ce', border: 'border-purple-500' };
+const STORE_PALETTE = [
+  { stroke: '#3b82f6', fill: '#1d4ed8', border: 'border-blue-500' },
+  { stroke: '#06b981', fill: '#0891b2', border: 'border-cyan-500' },
+  { stroke: '#ef4444', fill: '#b91c1c', border: 'border-red-500' },
+  { stroke: '#10b981', fill: '#047857', border: 'border-emerald-500' },
+  { stroke: '#f59e0b', fill: '#b45309', border: 'border-amber-500' },
+];
 
 export const PriceHistoryChart: React.FC<PriceHistoryChartProps> = ({
   history,
@@ -44,6 +43,12 @@ export const PriceHistoryChart: React.FC<PriceHistoryChartProps> = ({
       ...prev,
       [storeId]: !prev[storeId],
     }));
+  };
+
+  // Color por posición de la tienda en la serie (ids reales, no mock).
+  const colorFor = (storeId: string) => {
+    const idx = history.stores.findIndex(s => s.storeId === storeId);
+    return STORE_PALETTE[(idx >= 0 ? idx : 0) % STORE_PALETTE.length];
   };
 
   // Extract all distinct dates and price bounds
@@ -118,10 +123,10 @@ export const PriceHistoryChart: React.FC<PriceHistoryChartProps> = ({
         <div>
           <h3 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
             <TrendingUp className="w-4 h-4 text-blue-400" />
-            Evolución Histórica de Precios por Tienda
+            EvoluciÃ³n HistÃ³rica de Precios por Tienda
           </h3>
           <p className="text-xs text-slate-400 mt-0.5">
-            Series temporales TimescaleDB · Distinción de precio regular vs promocional
+            Series temporales TimescaleDB Â· DistinciÃ³n de precio regular vs promocional
           </p>
         </div>
 
@@ -148,7 +153,7 @@ export const PriceHistoryChart: React.FC<PriceHistoryChartProps> = ({
       <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-slate-800/80">
         <span className="text-xs text-slate-400 mr-1">Tiendas visibles:</span>
         {history.stores.map(store => {
-          const color = STORE_COLORS[store.storeId] || DEFAULT_COLOR;
+          const color = colorFor(store.storeId);
           const isSelected = activeStores[store.storeId];
           return (
             <button
@@ -176,7 +181,7 @@ export const PriceHistoryChart: React.FC<PriceHistoryChartProps> = ({
             <span className="w-2.5 h-2.5 rounded-full bg-slate-400 inline-block" /> Regular
           </span>
           <span className="flex items-center gap-1">
-            <span className="w-2.5 h-2.5 rotate-45 bg-emerald-400 inline-block" /> Promoción
+            <span className="w-2.5 h-2.5 rotate-45 bg-emerald-400 inline-block" /> PromociÃ³n
           </span>
           <span className="flex items-center gap-1">
             <span className="w-2.5 h-2.5 rounded-full border border-purple-400 bg-transparent inline-block" /> Estimado
@@ -255,7 +260,7 @@ export const PriceHistoryChart: React.FC<PriceHistoryChartProps> = ({
           {/* Store Lines and Observation Points */}
           {history.stores.map(store => {
             if (!activeStores[store.storeId]) return null;
-            const color = STORE_COLORS[store.storeId] || DEFAULT_COLOR;
+            const color = colorFor(store.storeId);
 
             // Sort observations by date
             const sortedObs = [...store.observations].sort(
@@ -360,7 +365,7 @@ export const PriceHistoryChart: React.FC<PriceHistoryChartProps> = ({
           >
             <div className="font-semibold text-white flex items-center gap-1.5">
               <span>{hoveredPoint.storeName}</span>
-              <span className="text-slate-500">·</span>
+              <span className="text-slate-500">Â·</span>
               <span className="font-mono text-slate-300 font-normal">
                 {new Date(hoveredPoint.point.date).toLocaleDateString('es-AR')}
               </span>
@@ -371,9 +376,9 @@ export const PriceHistoryChart: React.FC<PriceHistoryChartProps> = ({
             </div>
 
             <div className="text-[11px] text-slate-300">
-              Clasificación:{' '}
+              ClasificaciÃ³n:{' '}
               {hoveredPoint.point.priceType === 'promotional' ? (
-                <span className="text-emerald-400 font-semibold">Promoción</span>
+                <span className="text-emerald-400 font-semibold">PromociÃ³n</span>
               ) : hoveredPoint.point.priceType === 'regular_estimated' ? (
                 <span className="text-purple-400 font-semibold">Regular Estimado</span>
               ) : (
@@ -397,28 +402,28 @@ export const PriceHistoryChart: React.FC<PriceHistoryChartProps> = ({
       {/* Summary Metrics Strip */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2 text-xs">
         <div className="p-3 bg-slate-950/60 border border-slate-800 rounded">
-          <span className="text-slate-400 block text-[11px]">Precio mínimo actual</span>
+          <span className="text-slate-400 block text-[11px]">Precio mÃ­nimo actual</span>
           <span className="font-mono tabular-nums font-bold text-emerald-400 text-sm">
             {formatMoney(history.summary.currentMinPriceArs)}
           </span>
         </div>
 
         <div className="p-3 bg-slate-950/60 border border-slate-800 rounded">
-          <span className="text-slate-400 block text-[11px]">Precio máximo actual</span>
+          <span className="text-slate-400 block text-[11px]">Precio mÃ¡ximo actual</span>
           <span className="font-mono tabular-nums font-bold text-slate-200 text-sm">
             {formatMoney(history.summary.currentMaxPriceArs)}
           </span>
         </div>
 
         <div className="p-3 bg-slate-950/60 border border-slate-800 rounded">
-          <span className="text-slate-400 block text-[11px]">Dispersión entre tiendas</span>
+          <span className="text-slate-400 block text-[11px]">DispersiÃ³n entre tiendas</span>
           <span className="font-mono tabular-nums font-bold text-blue-400 text-sm">
             +{history.summary.priceSpreadPercentage}%
           </span>
         </div>
 
         <div className="p-3 bg-slate-950/60 border border-slate-800 rounded">
-          <span className="text-slate-400 block text-[11px]">Variación acumulada 30D</span>
+          <span className="text-slate-400 block text-[11px]">VariaciÃ³n acumulada 30D</span>
           <span className="font-mono tabular-nums font-bold text-amber-400 text-sm">
             +{history.summary.variation30dPercentage}%
           </span>

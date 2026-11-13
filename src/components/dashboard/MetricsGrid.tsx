@@ -30,7 +30,7 @@ export const MetricsGrid: React.FC<MetricsGridProps> = ({ summary, periodDays })
           </span>
         </div>
         <div className="text-[11px] text-slate-500 mt-1 truncate" title={summary.calculationMethod}>
-          Índice ponderado calculado por Backend FastAPI
+          Índice experimental: mediana móvil 7 días, sin promos
         </div>
       </div>
 

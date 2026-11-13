@@ -5,12 +5,10 @@
 
 export interface InflationMetricPoint {
   date: string;
-  headlineInflationMoM: number; // Month-over-month inflation % calculated by Backend
+  headlineInflationMoM: number; // variación % del índice vs. punto anterior
   foodAndBeverageMoM: number;
   personalCareMoM: number;
   householdCleaningMoM: number;
-  basketCostArs: number;
-  basketCostUsd?: number;
   sampleObservationsCount: number;
 }
 
@@ -21,7 +19,8 @@ export interface StoreDispersionItem {
   cheapestProductsPercentage: number;
   averageDiscountPercentage: number;
   totalMonitoredListings: number;
-  stockAvailabilityPercentage: number;
+  /** % de observaciones recientes en stock; null = sin datos (HU 2.1). */
+  stockAvailabilityPercentage: number | null;
 }
 
 export interface DashboardSummary {
@@ -37,7 +36,7 @@ export interface DashboardSummary {
   periodInflationMoM: number;
   periodInflationYoY: number;
   calculatedAt: string;
-  calculationMethod: string; // "Laspeyres Chain-weighted Index"
+  calculationMethod: string; // p.ej. "mediana movil 7d ... base 100"
   
   // Top movers & recent highlights
   topInflationProducts: {

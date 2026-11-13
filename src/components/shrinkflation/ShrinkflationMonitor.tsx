@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { ShrinkflationAlert, ShrinkflationStatus } from '../../types/shrinkflation';
 import { getShrinkflationAlerts } from '../../services/shrinkflationService';
+import { getCategories, CategoryOption } from '../../services/catalogService';
 import { useCurrency } from '../../context/CurrencyContext';
 import { ShrinkflationBadge } from '../common/StatusIndicator';
 import { ShrinkflationDetailModal } from './ShrinkflationDetailModal';
@@ -29,6 +30,21 @@ export const ShrinkflationMonitor: React.FC = () => {
 
   // Selected alert for evidence modal
   const [selectedAlert, setSelectedAlert] = useState<ShrinkflationAlert | null>(null);
+  const [categoryOptions, setCategoryOptions] = useState<CategoryOption[]>([]);
+
+  const loadCategories = useCallback(() => {
+    void (async () => {
+      try {
+        setCategoryOptions(await getCategories());
+      } catch (err) {
+        console.error('Error loading categories', err);
+      }
+    })();
+  }, []);
+
+  useEffect(() => {
+    void loadCategories();
+  }, [loadCategories]);
 
   const loadAlerts = useCallback(() => {
     return (async () => {
@@ -133,10 +149,11 @@ export const ShrinkflationMonitor: React.FC = () => {
             className="text-xs bg-slate-950 border border-slate-700 text-slate-300 rounded px-2.5 py-1.5 focus:outline-none focus:border-blue-500"
           >
             <option value="all">Todas las categorías</option>
-            <option value="Cuidado Personal">Cuidado Personal</option>
-            <option value="Limpieza">Limpieza</option>
-            <option value="Almacén">Almacén</option>
-            <option value="Snacks y Golosinas">Snacks y Golosinas</option>
+            {categoryOptions.map(c => (
+              <option key={c.id} value={c.nombre}>
+                {c.nombre}
+              </option>
+            ))}
           </select>
 
           <select

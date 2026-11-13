@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { PromotionSummaryItem } from '../../types/pricing';
 import { getActivePromotions } from '../../services/pricingService';
+import { getStores } from '../../services/catalogService';
+import type { Store } from '../../types/catalog';
 import { useCurrency } from '../../context/CurrencyContext';
 import { TableSkeleton } from '../common/LoadingSkeleton';
 import { EmptyState } from '../common/EmptyState';
@@ -17,6 +19,21 @@ export const PromotionsTable: React.FC<PromotionsTableProps> = ({ onSelectProduc
   const [error, setError] = useState<string | null>(null);
   const [selectedStore, setSelectedStore] = useState('all');
   const [minDiscount, setMinDiscount] = useState<number>(0);
+  const [stores, setStores] = useState<Store[]>([]);
+
+  const loadStores = useCallback(() => {
+    void (async () => {
+      try {
+        setStores(await getStores());
+      } catch (err) {
+        console.error('Error loading stores', err);
+      }
+    })();
+  }, []);
+
+  useEffect(() => {
+    void loadStores();
+  }, [loadStores]);
 
   const loadPromos = useCallback(() => {
     return (async () => {
@@ -58,10 +75,11 @@ export const PromotionsTable: React.FC<PromotionsTableProps> = ({ onSelectProduc
             className="text-xs bg-slate-950 border border-slate-700 text-slate-300 rounded px-2.5 py-1.5 focus:outline-none focus:border-blue-500"
           >
             <option value="all">Todas las tiendas</option>
-            <option value="Coto">Coto Digital</option>
-            <option value="Carrefour">Carrefour</option>
-            <option value="DIA">Supermercados DIA</option>
-            <option value="Jumbo">Jumbo</option>
+            {stores.map(s => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
+            ))}
           </select>
 
           <select

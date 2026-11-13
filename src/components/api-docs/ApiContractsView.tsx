@@ -6,7 +6,7 @@ interface ContractEndpoint {
   method: 'GET' | 'POST' | 'PATCH' | 'DELETE';
   path: string;
   description: string;
-  status: 'implemented' | 'pending_backend_contract' | 'active_with_fallback';
+  status: 'implemented';
   queryParams?: string[];
   requestPayload?: string;
   responsePayload: string;
@@ -16,79 +16,145 @@ interface ContractEndpoint {
 const CONTRACTS: ContractEndpoint[] = [
   {
     method: 'GET',
-    path: '/canonical-products',
-    description: 'Listado paginado de productos canónicos con filtros por categoría, marca, rango de precio y ordenamiento.',
-    status: 'active_with_fallback',
-    queryParams: ['q', 'category', 'brand', 'store_id', 'min_price', 'max_price', 'page', 'page_size', 'sort_by', 'sort_dir'],
-    responsePayload: `{\n  "items": [ {\n    "id": "prod_aceite_cocinero_900",\n    "sku": "ALIM-ACE-001",\n    "name": "Aceite de Girasol Cocinero 900 ml",\n    "brand": "Cocinero",\n    "category": "Almacén",\n    "netWeightQuantity": 900,\n    "netWeightUnit": "ml",\n    "minPriceArs": 2150,\n    "maxPriceArs": 2590,\n    "listingsCount": 4\n  } ],\n  "total": 1840,\n  "page": 1,\n  "pageSize": 10,\n  "totalPages": 184\n}`,
-    notes: 'Consumido por el catálogo principal.',
+    path: '/products',
+    description:
+      'Productos canónicos paginados; búsqueda y filtro por categoría se aplican en el servidor (HU 1.1).',
+    status: 'implemented',
+    queryParams: ['category_id', 'search', 'page', 'page_size'],
+    responsePayload:
+      '{\n  "items": [\n    {\n      "id": 2,\n      "nombre_universal": "Aceite de Girasol",\n      "categoria_id": 1,\n      "unidad_medida": "1,5 L",\n      "marca": "Natura"\n    }\n  ],\n  "total": 15\n}',
+    notes: 'Alimenta el catálogo y el dashboard.',
   },
   {
     method: 'GET',
-    path: '/canonical-products/{id}/listings',
-    description: 'Devuelve todas las publicaciones activas en tiendas e-commerce asociadas al producto canónico.',
-    status: 'active_with_fallback',
-    responsePayload: `[\n  {\n    "id": "list_coto_aceite_01",\n    "storeName": "Coto Digital",\n    "externalId": "COTO-481923",\n    "originalName": "Aceite de Girasol COCINERO Botella 900 Ml",\n    "productUrl": "https://www.cotodigital3.com.ar/...",\n    "currentPriceArs": 2150,\n    "isPromotional": true,\n    "promotionMechanic": "12% OFF llevando 2 un."\n  }\n]`,
-    notes: 'Requerido para la vista de detalle y comparación entre tiendas.',
+    path: '/products/categories',
+    description: 'Lookup de categorías reales para los filtros del catálogo y del tablero.',
+    status: 'implemented',
+    responsePayload:
+      '[\n  { "id": 1, "nombre": "Alimentos y Bebidas" },\n  { "id": 2, "nombre": "Cuidado e Higiene Personal" },\n  { "id": 4, "nombre": "Hogar y Limpieza" }\n]',
   },
   {
     method: 'POST',
-    path: '/canonical-products/{id}/listings',
-    description: 'Asociación manual de una publicación scrapeada a un producto canónico.',
-    status: 'active_with_fallback',
-    requestPayload: `{\n  "listing_id": "list_unmatched_dia_choc_99"\n}`,
-    responsePayload: `{\n  "success": true,\n  "message": "Publicación asociada exitosamente"\n}`,
-    notes: 'El matching para el MVP es manual con confirmación previa.',
+    path: '/products',
+    description: 'Alta de producto canónico (HU 1.1).',
+    status: 'implemented',
+    requestPayload:
+      '{\n  "nombre_universal": "Aceite de Girasol",\n  "categoria_id": 1,\n  "unidad_medida": "1,5 L",\n  "marca": "Natura"\n}',
+    responsePayload:
+      '{\n  "id": 16,\n  "nombre_universal": "Aceite de Girasol",\n  "categoria_id": 1,\n  "unidad_medida": "1,5 L",\n  "marca": "Natura"\n}',
+    notes: '201 en éxito; 422 en payload inválido.',
   },
   {
-    method: 'DELETE',
-    path: '/canonical-products/{id}/listings/{listing_id}',
-    description: 'Desasociación de una publicación del producto canónico.',
-    status: 'active_with_fallback',
-    responsePayload: `{\n  "success": true,\n  "message": "Publicación desasociada exitosamente"\n}`,
-    notes: 'Desvincula la publicación y la retorna al listado de pendientes.',
+    method: 'PATCH',
+    path: '/products/{id}',
+    description: 'Actualización parcial de un producto canónico.',
+    status: 'implemented',
+    requestPayload: '{\n  "marca": "Natura"\n}',
+    responsePayload:
+      '{\n  "id": 2,\n  "nombre_universal": "Aceite de Girasol",\n  "marca": "Natura"\n}',
+    notes: '404 si el producto no existe.',
   },
   {
-    method: 'GET',
-    path: '/matching/suggestions',
-    description: 'Sugerencias heurísticas de coincidencia pendientes de validación por un operador.',
-    status: 'active_with_fallback',
-    responsePayload: `[\n  {\n    "id": "match_sugg_01",\n    "listingId": "list_unmatched_dia_choc_99",\n    "canonicalProductId": "prod_chocolinas_250",\n    "confidenceScore": 0.94,\n    "similarityFactors": {\n      "nameSimilarity": 0.92,\n      "brandMatch": true,\n      "weightSimilarity": 1.0\n    }\n  }\n]`,
-    notes: 'El sistema no fusiona automáticamente; muestra sugerencias para confirmación.',
-  },
-  {
-    method: 'GET',
-    path: '/canonical-products/{id}/price-history',
-    description: 'Serie temporal de precios diarios en TimescaleDB diferenciando precios regulares observados, estimados y promociones.',
-    status: 'active_with_fallback',
-    queryParams: ['period: 7d | 30d | 90d | 180d | 1y | all'],
-    responsePayload: `{\n  "canonicalProductId": "prod_aceite_cocinero_900",\n  "stores": [\n    {\n      "storeId": "store_coto",\n      "storeName": "Coto Digital",\n      "observations": [\n        {\n          "date": "2026-10-20",\n          "priceArs": 2150,\n          "priceUsd": 1.82,\n          "priceType": "promotional",\n          "isPromotional": true,\n          "promotionMechanic": "12% OFF llevando 2 un."\n        }\n      ]\n    }\n  ]\n}`,
-    notes: 'Alimenta el gráfico interactivo de dispersión y evolución.',
-  },
-  {
-    method: 'GET',
-    path: '/shrinkflation-alerts',
-    description: 'Listado de discrepancias en peso/volumen detectadas por scrapers con cálculo de inflación encubierta por unidad.',
-    status: 'active_with_fallback',
-    queryParams: ['status: confirmed | suspected | unknown', 'category', 'min_inflation'],
-    responsePayload: `[\n  {\n    "id": "shrink_alert_colgate_01",\n    "canonicalProductName": "Crema Dental Colgate Total 12",\n    "status": "confirmed",\n    "originalWeightQuantity": 90,\n    "newWeightQuantity": 70,\n    "weightChangePercentage": -22.2,\n    "effectiveUnitInflationPercentage": 40.22,\n    "evidenceBaseline": { "weightDeclaredQuantity": 90, "observedPriceArs": 2650 },\n    "evidenceCurrent": { "weightDeclaredQuantity": 70, "observedPriceArs": 2890 }\n  }\n]`,
-    notes: 'No afirma reduflación sin respaldo; categoriza en desconocido, estimado y confirmado.',
+    method: 'POST',
+    path: '/store-products',
+    description:
+      'Publicación de tienda asociada a un producto canónico, con identidad external_id (HU 1.2).',
+    status: 'implemented',
+    requestPayload:
+      '{\n  "producto_id": 8,\n  "tienda_id": 2,\n  "external_id": "8324",\n  "source_url": "https://www.cetrogar.com.ar/tv-led-50--.../p",\n  "nombre_crudo": "Smart Tv Led Samsung UN50M60HAGXZB 50\\" Mini Led T"\n}',
+    responsePayload:
+      '{\n  "id": 1,\n  "producto_id": 8,\n  "tienda_id": 2,\n  "external_id": "8324",\n  "created_at": "2026-11-12T04:59:58.932434Z"\n}',
+    notes: '409 si (tienda_id, external_id) ya existe.',
   },
   {
     method: 'GET',
-    path: '/exchange-rates/active',
-    description: 'Cotización oficial vigente de USD provista por el Backend.',
-    status: 'active_with_fallback',
-    responsePayload: `{\n  "baseCurrency": "USD",\n  "targetCurrency": "ARS",\n  "rate": 1180.50,\n  "rateType": "official",\n  "source": "BCRA / Backend TimescaleDB API",\n  "timestamp": "2026-10-20T12:00:00Z"\n}`,
-    notes: 'El Frontend no inventa cotizaciones ni consulta fuentes 3P no aprobadas.',
+    path: '/store-products',
+    description: 'Listado de publicaciones por tienda/producto; unmatched_only devuelve las pendientes de asociar.',
+    status: 'implemented',
+    queryParams: ['tienda_id', 'producto_id', 'unmatched_only'],
+    responsePayload:
+      '[\n  {\n    "id": 1,\n    "producto_id": 8,\n    "tienda_id": 2,\n    "external_id": "8324",\n    "nombre_crudo": "Smart Tv Led Samsung UN50M60HAGXZB 50\\" Mini Led T",\n    "marca_cruda": "Samsung"\n  }\n]',
+  },
+  {
+    method: 'POST',
+    path: '/match/suggestions',
+    description:
+      'Sugerencias de matching producto↔publicación con rapidfuzz (HU 1.4).',
+    status: 'implemented',
+    requestPayload: '{\n  "tienda_id": 3,\n  "threshold": 0.75\n}',
+    responsePayload:
+      '{\n  "items": [\n    {\n      "store_product": { "id": 5, "nombre_crudo": "Arroz Parboil Gallo Oro 1kg" },\n      "product": { "id": 1, "nombre_universal": "Arroz Parboil" },\n      "score": 0.93,\n      "band": "auto"\n    }\n  ],\n  "total": 1,\n  "auto_count": 1,\n  "review_count": 0\n}',
+    notes: 'score ≥ 0.90 → auto; 0.75–0.90 → revisión manual en el Frontend.',
   },
   {
     method: 'GET',
-    path: '/analytics/dashboard-summary',
-    description: 'Métricas macro agregadas: inflación calculada por Backend (Laspeyres), total de productos y tiendas.',
-    status: 'active_with_fallback',
-    responsePayload: `{\n  "periodInflationMoM": 3.42,\n  "periodInflationYoY": 52.80,\n  "calculationMethod": "Laspeyres Chain-weighted Index",\n  "monitoredProductsCount": 1840,\n  "trackedListingsCount": 6940,\n  "promotionsRatePercentage": 20.46\n}`,
-    notes: 'La lógica de cálculo de inflación y exclusiones pertenece al Backend.',
+    path: '/prices/history',
+    description:
+      'Serie temporal de precios por producto/tienda con precio USD persistido y clasificación promo derivada (HU 3.3).',
+    status: 'implemented',
+    queryParams: ['producto_id', 'tienda_id', 'start', 'end', 'page', 'page_size'],
+    responsePayload:
+      '{\n  "items": [\n    {\n      "id": 1,\n      "timestamp": "2026-10-27T18:03:02.966403Z",\n      "producto_id": 1,\n      "tienda_id": 3,\n      "precio_local": "2980.00",\n      "precio_tachado": null,\n      "en_oferta": false,\n      "tipo_cambio_usado": "1560.0000",\n      "precio_usd": "1.91",\n      "disponible": null,\n      "is_promotion": false,\n      "price_regular": "2980.00",\n      "discount_pct": "0"\n    }\n  ],\n  "total": 768\n}',
+    notes: 'disponible: null = desconocido (HU 2.1).',
+  },
+  {
+    method: 'GET',
+    path: '/exchange-rates/as-of',
+    description:
+      'Cotización al momento indicado: fila más cercana anterior a ts; sin previo, la más antigua (HU 3.2).',
+    status: 'implemented',
+    queryParams: ['ts'],
+    responsePayload:
+      '{\n  "timestamp": "2026-11-12T11:00:52.551185Z",\n  "tipo_cambio_oficial": "1573.0000",\n  "tipo_cambio_paralelo": "1568.0000"\n}',
+    notes: 'Fuente: Bluelytics vía ingesta horaria del Backend.',
+  },
+  {
+    method: 'GET',
+    path: '/indicators/inflation',
+    description:
+      'Índice de inflación base 100 (HU 2.3): mediana móvil 7d de precios regulares, excluye promos.',
+    status: 'implemented',
+    queryParams: ['start_date', 'end_date', 'category_id', 'currency'],
+    responsePayload:
+      '{\n  "series": [\n    { "date": "2026-11-11", "index": "100.00" },\n    { "date": "2026-11-12", "index": "100.17" }\n  ],\n  "base": "100",\n  "method": "mediana movil 7d de precios regulares por producto (excluye en_oferta y descuentos >= 10%), media de ratios por categoria, base 100",\n  "excluded_promos": 200,\n  "products_count": 9\n}',
+    notes: 'Índice experimental, no oficial: el método está documentado en el README del Backend.',
+  },
+  {
+    method: 'GET',
+    path: '/indicators/devaluation-gap',
+    description:
+      'Brecha entre variación de precios y variación del tipo de cambio en el período (HU 3.4).',
+    status: 'implemented',
+    queryParams: ['start_date', 'end_date'],
+    responsePayload:
+      '{\n  "start": "2026-10-13",\n  "end": "2026-11-12",\n  "price_variation": "0.0000",\n  "fx_variation": "0.0142",\n  "gap": "-0.0142",\n  "fx_start": "1550.0000",\n  "fx_end": "1572.0000"\n}',
+  },
+  {
+    method: 'GET',
+    path: '/alerts',
+    description:
+      'Alertas de anomalía: reduflación y precios que superan la devaluación (HU 3.5).',
+    status: 'implemented',
+    queryParams: ['status', 'severity', 'type'],
+    responsePayload:
+      '[\n  {\n    "id": 12,\n    "alert_type": "shrinkflation",\n    "producto_id": 5,\n    "store_product_id": 9,\n    "tienda_id": 3,\n    "score": "0.8500",\n    "severity": "medium",\n    "status": "open",\n    "details": { "weight_change_pct": -20 },\n    "created_at": "2026-11-13T03:15:00Z",\n    "reviewed_at": null\n  }\n]',
+    notes: 'Devuelve [] cuando no hay alertas abiertas.',
+  },
+  {
+    method: 'PATCH',
+    path: '/alerts/{id}',
+    description: 'Marca una alerta como revisada por un operador.',
+    status: 'implemented',
+    requestPayload: '{\n  "status": "reviewed"\n}',
+    responsePayload:
+      '{\n  "id": 12,\n  "status": "reviewed",\n  "reviewed_at": "2026-11-13T12:00:00Z"\n}',
+  },
+  {
+    method: 'GET',
+    path: '/health',
+    description: 'Sonda de salud del Backend (badge ApiStatus del Frontend).',
+    status: 'implemented',
+    responsePayload: '{\n  "status": "ok",\n  "app": "PriceScope API",\n  "version": "0.1.0"\n}',
   },
 ];
 
@@ -103,10 +169,12 @@ export const ApiContractsView: React.FC = () => {
         <div>
           <h2 className="text-base font-bold text-white flex items-center gap-2">
             <Server className="w-5 h-5 text-blue-400" />
-            Especificación de Contratos API REST (FastAPI & TimescaleDB)
+            Especificación de Contratos API REST (FastAPI & PostgreSQL)
           </h2>
           <p className="text-xs text-slate-400 mt-1 max-w-2xl leading-relaxed">
-            PriceScope Frontend se integra de manera desacoplada con el Backend en FastAPI. Todos los endpoints cuentan con fallback transparente y validación estricta de esquemas TypeScript.
+            Frontend consume la API v1 bajo SPEC §2.2. Sin fallback silencioso: con{' '}
+            <code className="font-mono">VITE_ENABLE_MOCK=false</code> los errores se propagan; el
+            mock solo se activa por env o por toggle explícito.
           </p>
         </div>
 
@@ -183,7 +251,7 @@ export const ApiContractsView: React.FC = () => {
               </span>
             </div>
             <span className="inline-flex items-center gap-1 text-[11px] text-emerald-400 font-medium">
-              <CheckCircle2 className="w-3.5 h-3.5" /> Frontend Compatible
+              <CheckCircle2 className="w-3.5 h-3.5" /> Implementado
             </span>
           </div>
 

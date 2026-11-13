@@ -15,7 +15,7 @@ export const StoreComparisonWidget: React.FC<StoreComparisonWidgetProps> = ({ st
           Benchmark de Competitividad de Precios por Tienda
         </h3>
         <p className="text-xs text-slate-400 mt-0.5">
-          Dispersión promedio respecto a la canasta de mercado (Índice Base = 100)
+          Dispersión de precios respecto al promedio del mercado (índice base = 100)
         </p>
       </div>
 
@@ -43,7 +43,7 @@ export const StoreComparisonWidget: React.FC<StoreComparisonWidgetProps> = ({ st
               {/* Price index progress bar */}
               <div className="space-y-1">
                 <div className="flex justify-between text-[11px] text-slate-400 font-mono">
-                  <span>Índice Canasta:</span>
+                  <span>Índice de precio:</span>
                   <span className="font-semibold text-slate-200">{store.averagePriceIndex}</span>
                 </div>
                 <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
@@ -72,7 +72,9 @@ export const StoreComparisonWidget: React.FC<StoreComparisonWidgetProps> = ({ st
                 <div className="flex justify-between">
                   <span>Disponibilidad stock:</span>
                   <span className="font-mono tabular-nums text-slate-300">
-                    {store.stockAvailabilityPercentage}%
+                    {store.stockAvailabilityPercentage === null
+                      ? 'N/D'
+                      : `${store.stockAvailabilityPercentage}%`}
                   </span>
                 </div>
               </div>

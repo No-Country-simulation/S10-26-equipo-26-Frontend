@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { InflationMetricPoint } from '../../types/analytics';
-import { useCurrency } from '../../context/CurrencyContext';
 import { TrendingUp } from 'lucide-react';
 
 interface CategoryTab {
@@ -23,8 +22,6 @@ export const InflationChart: React.FC<InflationChartProps> = ({
   selectedCategoryId,
   onSelectCategory,
 }) => {
-  const { formatMoney } = useCurrency();
-
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
 
   const width = 640;
@@ -67,7 +64,7 @@ export const InflationChart: React.FC<InflationChartProps> = ({
         <div>
           <h3 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
             <TrendingUp className="w-4 h-4 text-red-400" />
-            Evolución de la Inflación Real Mensual (MoM)
+            Evolución del Índice de Inflación
           </h3>
           <p className="text-xs text-slate-400 mt-0.5">
             Índice experimental (base 100, mediana móvil 7 días, sin promociones)
@@ -224,16 +221,12 @@ export const InflationChart: React.FC<InflationChartProps> = ({
               })}
             </div>
             <div className="text-red-400 font-mono font-bold text-sm">
-              +{getMetricValue(series[hoverIndex]).toFixed(2)}% MoM
-            </div>
-            <div className="text-[11px] text-slate-300">
-              Costo canasta:{' '}
-              <strong className="text-slate-100 font-mono">
-                {formatMoney(series[hoverIndex].basketCostArs, series[hoverIndex].basketCostUsd)}
-              </strong>
+              {getMetricValue(series[hoverIndex]) >= 0 ? '+' : ''}
+              {getMetricValue(series[hoverIndex]).toFixed(2)}% vs. día anterior
             </div>
             <div className="text-[10px] text-slate-400">
-              Basado en {series[hoverIndex].sampleObservationsCount.toLocaleString('es-AR')} observaciones
+              {series[hoverIndex].sampleObservationsCount.toLocaleString('es-AR')} productos en
+              el índice
             </div>
           </div>
         )}
@@ -241,8 +234,8 @@ export const InflationChart: React.FC<InflationChartProps> = ({
       )}
 
       <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1 border-t border-slate-800">
-        <span>Fuente: Indicadores de inflación calculados por el Backend (TimescaleDB).</span>
-        <span>Muestra representativa de la canasta de consumo masivo</span>
+        <span>Fuente: indicadores calculados por el Backend FastAPI.</span>
+        <span>Índice experimental: mediana móvil 7 días, sin promos</span>
       </div>
     </div>
   );

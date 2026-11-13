@@ -9,7 +9,7 @@ export interface ExchangeRate {
   targetCurrency: CurrencyCode;
   rate: number; // e.g. 1 USD = 1180.50 ARS => 1180.50
   rateType: 'official' | 'market_mep' | 'crypto' | 'weighted_index';
-  source: string; // e.g. "BCRA / Backend TimescaleDB"
+  source: string; // p.ej. "Bluelytics vía Backend"
   timestamp: string; // ISO 8601 of the quote
   fetchedAt: string;
   isStale?: boolean; // True if quote is > 24h old without refresh

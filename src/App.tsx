@@ -80,7 +80,7 @@ export default function App() {
               </span>
             )}
             <span className="text-[11px] font-mono text-slate-500">
-              TimescaleDB v2.16 · FastAPI REST
+              PostgreSQL · FastAPI REST
             </span>
           </div>
         </div>

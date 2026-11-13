@@ -58,6 +58,7 @@ export interface ApiPricePoint {
   tipo_cambio_usado: string | number;
   precio_usd: string | number;
   raw_presentation?: string | null;
+  disponible?: boolean | null;
   is_promotion: boolean;
   price_regular: string | number;
   discount_pct: string | number;
@@ -338,7 +339,6 @@ export function mapInflationSeries(api: ApiInflationSeries): InflationMetricPoin
       foodAndBeverageMoM: Number(mom.toFixed(2)),
       personalCareMoM: Number(mom.toFixed(2)),
       householdCleaningMoM: Number(mom.toFixed(2)),
-      basketCostArs: index * 1000,
       sampleObservationsCount: api.products_count,
     };
   });
@@ -664,14 +664,31 @@ export function mapStoreDispersion(
 
   const byStore = new Map<
     number,
-    { prices: number[]; promoDiscounts: number[]; cheapest: number }
+    {
+      prices: number[];
+      promoDiscounts: number[];
+      cheapest: number;
+      stockKnown: number;
+      stockOk: number;
+    }
   >();
   for (const p of latest.values()) {
     if (p.tienda_id == null) continue;
-    const entry = byStore.get(p.tienda_id) || { prices: [], promoDiscounts: [], cheapest: 0 };
+    const entry = byStore.get(p.tienda_id) || {
+      prices: [],
+      promoDiscounts: [],
+      cheapest: 0,
+      stockKnown: 0,
+      stockOk: 0,
+    };
     entry.prices.push(num(p.precio_local));
     if (p.is_promotion && num(p.discount_pct) > 0) {
       entry.promoDiscounts.push(num(p.discount_pct) * 100);
+    }
+    // HU 2.1: disponibilidad observada en la última lectura del par.
+    if (p.disponible != null) {
+      entry.stockKnown += 1;
+      if (p.disponible) entry.stockOk += 1;
     }
     if (p.producto_id != null) {
       const min = minByProduct.get(p.producto_id);
@@ -686,6 +703,8 @@ export function mapStoreDispersion(
     count: s.prices.length,
     promoDiscounts: s.promoDiscounts,
     cheapest: s.cheapest,
+    stockKnown: s.stockKnown,
+    stockOk: s.stockOk,
   }));
   const marketAvg = stats.reduce((a, b) => a + b.avg, 0) / stats.length;
 
@@ -703,7 +722,9 @@ export function mapStoreDispersion(
         s.count > 0 ? Number(((s.cheapest / s.count) * 100).toFixed(0)) : 0,
       averageDiscountPercentage: Number(avgDiscount.toFixed(1)),
       totalMonitoredListings: s.count,
-      stockAvailabilityPercentage: 100,
+      // HU 2.1: null = sin datos de stock (ej. Coto, que no lo expone).
+      stockAvailabilityPercentage:
+        s.stockKnown > 0 ? Number(((s.stockOk / s.stockKnown) * 100).toFixed(0)) : null,
     };
   });
 }
